@@ -399,7 +399,7 @@ Workflow در مسیر `.github/workflows/build-release.yml` قرار دارد �
 
 1. آماده‌سازی Windows Runner و نصب .NET SDK 10
 2. `dotnet restore` و `dotnet build` در حالت Release
-3. اجرای تست‌ها (در صورت شکست، انتشار متوقف می‌شود)
+3. اجرای تست‌های واحد و سپس تست‌های یکپارچه‌سازی دیتابیس (در صورت وجود LocalDB روی Runner) — در صورت شکست، انتشار متوقف می‌شود
 4. `dotnet publish` با تنظیمات Self-contained + Single File (win-x64)
 5. نصب Inno Setup و ساخت `IndustrialSensorMonitor-Setup-x64.exe`
 6. ساخت `IndustrialSensorMonitor-Portable-x64.zip`
@@ -539,7 +539,8 @@ IndustrialSensorMonitor/
 │       ├── IndustrialSensorMonitor.Tests.csproj
 │       ├── SensorInputValidatorTests.cs
 │       ├── SensorCatalogTests.cs
-│       └── DatabaseConnectionTests.cs
+│       ├── DatabaseConnectionTests.cs
+│       └── SensorRepositoryIntegrationTests.cs   # تست واقعی با SQL Server LocalDB
 │
 ├── dist/                              # خروجی‌های نهایی (توسط GitHub Actions ساخته می‌شود)
 ├── README.md
@@ -582,11 +583,14 @@ GitHub Actions به‌صورت خودکار نسخه را با شماره Tag م
 | Restore پکیج‌های NuGet | ✅ موفق | `Microsoft.Data.SqlClient 6.1.1`، `Microsoft.Extensions.Configuration(.Json) 10.0.0` |
 | Build در حالت Release | ✅ موفق | بدون خطای کامپایل |
 | اجرای تست‌های واحد (xUnit) | ✅ موفق | اعتبارسنجی ورودی‌ها، فهرست سنسورها و رشته اتصال |
+| تست یکپارچه‌سازی دیتابیس (SQL Server LocalDB واقعی) | ✅ موفق | اجرای دو‌باره `InitDatabase.sql`، ایجاد خودکار دیتابیس/جدول، درج و بازخوانی متن فارسی و مقدار اعشاری `123.4567` و مقدار منفی، بررسی مرتب‌سازی نزولی |
 | انتشار Self-contained Single File (`win-x64`) | ✅ موفق | `IndustrialSensorMonitor.exe` — حدود ۵۰ مگابایت |
 | ساخت فایل نصب با Inno Setup | ✅ موفق | `IndustrialSensorMonitor-Setup-x64.exe` — حدود ۳۷ مگابایت |
 | ساخت نسخه قابل حمل | ✅ موفق | `IndustrialSensorMonitor-Portable-x64.zip` — حدود ۵۰ مگابایت |
 | بارگذاری Artifacts | ✅ موفق | سه Artifact جداگانه در تب Actions |
 | انتشار GitHub Release | ✅ موفق | با ایجاد Tag از الگوی `v*` |
+
+**آنچه در CI واقعاً آزمایش شده است:** اسکریپت `Database/InitDatabase.sql` روی یک نمونه واقعی SQL Server Express LocalDB اجرا شده (دو بار پشت سر هم، برای اثبات تکرارپذیر بودن)، سپس دیتابیس و جدول به‌صورت خودکار ساخته شده و کلاس `SensorRepository` رکوردهایی شامل **متن فارسی** و **اعداد اعشاری چهاررقمی** را در دیتابیس درج و مجدداً خوانده است؛ صحت مقدار `123.4567`، مقدار منفی `-45.6789`، واحد اندازه‌گیری، شناسه و مرتب‌سازی نزولی تاریخ ثبت تأیید شده است.
 
 **نکته صادقانه درباره تست‌ها:** فرآیند Build، تست خودکار و بسته‌بندی در محیط CI ویندوزی انجام شده است. اجرای تعاملی برنامه روی دسکتاپ ویندوز (باز کردن فرم، ثبت واقعی رکورد در LocalDB و بررسی ظاهر رابط کاربری) نیازمند یک سیستم ویندوزی با SQL Server LocalDB است؛ سناریوهای جدول «تست عملکرد» را می‌توانید روی همان سیستم با استفاده از فایل نصب یا نسخه Portable انجام دهید. دیتابیس برنامه در زمان اجرا، در صورت وجود دسترسی مناسب، به‌صورت خودکار ساخته می‌شود و در غیر این صورت پیام راهنما نمایش داده می‌شود.
 
