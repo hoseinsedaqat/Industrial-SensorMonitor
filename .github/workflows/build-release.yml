@@ -6,7 +6,6 @@ on:
     branches:
       - main
       - test
-      - arena/27442de1-industrial-sensormonitor
     tags:
       - 'v*'
   workflow_dispatch:
