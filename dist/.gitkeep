@@ -1,0 +1,11 @@
+# پوشه خروجی‌های نهایی (dist)
+
+فایل‌های این پوشه به‌صورت خودکار توسط GitHub Actions ساخته می‌شوند و در Git نگهداری نمی‌شوند:
+
+- `IndustrialSensorMonitor.exe` — فایل اجرایی مستقل (Self-contained, Single File)
+- `IndustrialSensorMonitor-Setup-x64.exe` — بسته نصبی ویندوز (Inno Setup)
+- `IndustrialSensorMonitor-Portable-x64.zip` — نسخه قابل حمل
+
+این فایل‌ها پس از هر اجرای موفق Workflow در بخش **Actions → Artifacts** و پس از ایجاد Tag نسخه در بخش **Releases** قابل دانلود هستند.
+
+برای ساخت محلی این فایل‌ها، مراجعه کنید به بخش‌های «انتشار فایل EXE» و «ساخت فایل نصب» در فایل `README.md`.

@@ -1,0 +1,264 @@
+name: Build and Release
+
+# اجرای خودکار با Push به شاخه اصلی، اجرای دستی و ایجاد Tag نسخه
+on:
+  push:
+    branches:
+      - main
+      - test
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+# برای ساخت GitHub Release نیاز به دسترسی نوشتن محتوا وجود دارد
+permissions:
+  contents: write
+
+env:
+  DOTNET_VERSION: '10.0.x'
+  SOLUTION_PATH: 'IndustrialSensorMonitor.sln'
+  PROJECT_PATH: 'src/IndustrialSensorMonitor/IndustrialSensorMonitor.csproj'
+  TEST_PROJECT_PATH: 'tests/IndustrialSensorMonitor.Tests/IndustrialSensorMonitor.Tests.csproj'
+  CONFIGURATION: Release
+  DOTNET_NOLOGO: 'true'
+  DOTNET_CLI_TELEMETRY_OPTOUT: 'true'
+  DOTNET_SKIP_FIRST_TIME_EXPERIENCE: 'true'
+
+jobs:
+  build:
+    name: Build, Package and Release
+    runs-on: windows-latest
+
+    steps:
+      - name: دریافت سورس کد
+        uses: actions/checkout@v4
+
+      - name: نصب .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: نمایش اطلاعات محیط Build
+        shell: pwsh
+        run: |
+          dotnet --info
+          Write-Host "ساختار Solution:"
+          Get-ChildItem -Recurse -Filter *.csproj | Select-Object FullName
+
+      - name: تعیین شماره نسخه
+        id: version
+        shell: pwsh
+        run: |
+          if ($env:GITHUB_REF -like 'refs/tags/v*') {
+            $version = $env:GITHUB_REF -replace '^refs/tags/v', ''
+            Write-Host "نسخه از Tag گرفته شد."
+          }
+          else {
+            [xml]$project = Get-Content -Path '${{ env.PROJECT_PATH }}'
+            $version = @($project.Project.PropertyGroup.Version) | Where-Object { $_ } | Select-Object -First 1
+            if ([string]::IsNullOrWhiteSpace($version)) { $version = '1.0.0' }
+            Write-Host "نسخه از فایل پروژه خوانده شد."
+          }
+          Write-Host "شماره نسخه: $version"
+          "version=$version" >> $env:GITHUB_OUTPUT
+
+      - name: بازیابی پکیج‌های NuGet (Restore)
+        run: dotnet restore ${{ env.SOLUTION_PATH }}
+
+      - name: ساخت پروژه (Build)
+        run: dotnet build ${{ env.SOLUTION_PATH }} -c ${{ env.CONFIGURATION }} --no-restore -p:Version=${{ steps.version.outputs.version }}
+
+      - name: بررسی در دسترس بودن SQL Server LocalDB
+        id: localdb
+        shell: pwsh
+        run: |
+          $available = 'false'
+          try {
+            $instances = & sqllocaldb info 2>$null
+            Write-Host "نمونه‌های LocalDB: $instances"
+            if ($instances -match 'MSSQLLocalDB') { $available = 'true' }
+          }
+          catch {
+            Write-Host "ابزار sqllocaldb در این محیط در دسترس نیست."
+          }
+          Write-Host "LocalDB Available: $available"
+          "available=$available" >> $env:GITHUB_OUTPUT
+
+      - name: اجرای تست‌های واحد
+        run: >
+          dotnet test ${{ env.TEST_PROJECT_PATH }}
+          -c ${{ env.CONFIGURATION }}
+          --no-build
+          -p:Version=${{ steps.version.outputs.version }}
+          --filter "Category!=Integration"
+          --logger "trx;LogFileName=unit-tests.trx"
+          --results-directory TestResults
+
+      - name: اجرای تست‌های یکپارچه‌سازی دیتابیس (SQL Server LocalDB)
+        if: steps.localdb.outputs.available == 'true'
+        run: >
+          dotnet test ${{ env.TEST_PROJECT_PATH }}
+          -c ${{ env.CONFIGURATION }}
+          --no-build
+          -p:Version=${{ steps.version.outputs.version }}
+          --filter "Category=Integration"
+          --logger "trx;LogFileName=integration-tests.trx"
+          --results-directory TestResults
+
+      - name: انتشار فایل اجرایی (Self-contained, Single File)
+        run: >
+          dotnet publish ${{ env.PROJECT_PATH }}
+          -c ${{ env.CONFIGURATION }}
+          -r win-x64
+          --self-contained true
+          -p:PublishSingleFile=true
+          -p:IncludeNativeLibrariesForSelfExtract=true
+          -p:PublishTrimmed=false
+          -p:DebugType=None
+          -p:DebugSymbols=false
+          -p:Version=${{ steps.version.outputs.version }}
+          -o publish/win-x64
+
+      - name: بررسی خروجی انتشار
+        shell: pwsh
+        run: |
+          $exePath = 'publish/win-x64/IndustrialSensorMonitor.exe'
+          if (-not (Test-Path $exePath)) { throw "فایل اجرایی IndustrialSensorMonitor.exe تولید نشد." }
+
+          $existsAppSettings = Test-Path 'publish/win-x64/appsettings.json'
+          if (-not $existsAppSettings) {
+            Copy-Item 'src/IndustrialSensorMonitor/appsettings.json' 'publish/win-x64/appsettings.json' -Force
+            Write-Host "فایل appsettings.json در خروجی نبود و از سورس کپی شد."
+          }
+
+          $exeSize = (Get-Item $exePath).Length
+          if ($exeSize -lt 1MB) { throw "حجم فایل اجرایی غیرمنتظره است: $exeSize بایت" }
+
+          Write-Host "محتوای پوشه انتشار:"
+          Get-ChildItem 'publish/win-x64' -Recurse | Format-Table FullName, Length
+
+      - name: نصب Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          $candidates = @(
+            'C:\Program Files (x86)\Inno Setup 6\ISCC.exe',
+            'C:\Program Files\Inno Setup 6\ISCC.exe'
+          )
+          $iscc = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $iscc) { throw 'کامپایلر Inno Setup (ISCC.exe) پیدا نشد.' }
+          Write-Host "ISCC: $iscc"
+          "ISCC_PATH=$iscc" >> $env:GITHUB_ENV
+
+      - name: ساخت فایل نصب ویندوز (Setup.exe)
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path dist | Out-Null
+          & $env:ISCC_PATH 'installer\Setup.iss' "/DMyAppVersion=${{ steps.version.outputs.version }}"
+          if ($LASTEXITCODE -ne 0) { throw "ساخت فایل نصب با خطا مواجه شد (کد خروج: $LASTEXITCODE)." }
+          if (-not (Test-Path 'dist/IndustrialSensorMonitor-Setup-x64.exe')) {
+            throw 'فایل IndustrialSensorMonitor-Setup-x64.exe تولید نشد.'
+          }
+
+      - name: آماده‌سازی خروجی‌های نهایی در پوشه dist
+        shell: pwsh
+        run: |
+          Copy-Item 'publish/win-x64/IndustrialSensorMonitor.exe' 'dist/IndustrialSensorMonitor.exe' -Force
+
+          $portableRoot = 'portable/IndustrialSensorMonitor-Portable'
+          New-Item -ItemType Directory -Force -Path "$portableRoot/Database" | Out-Null
+          Copy-Item 'publish/win-x64/IndustrialSensorMonitor.exe' "$portableRoot/" -Force
+          Copy-Item 'publish/win-x64/appsettings.json' "$portableRoot/" -Force
+          Copy-Item 'README.md' "$portableRoot/README.md" -Force
+          Copy-Item 'Database/InitDatabase.sql' "$portableRoot/Database/InitDatabase.sql" -Force
+
+          Compress-Archive -Path $portableRoot -DestinationPath 'dist/IndustrialSensorMonitor-Portable-x64.zip' -Force
+
+          $required = @(
+            'dist/IndustrialSensorMonitor.exe',
+            'dist/IndustrialSensorMonitor-Setup-x64.exe',
+            'dist/IndustrialSensorMonitor-Portable-x64.zip'
+          )
+          foreach ($file in $required) {
+            if (-not (Test-Path $file)) { throw "فایل خروجی تولید نشد: $file" }
+            if ((Get-Item $file).Length -lt 1KB) { throw "فایل خروجی خالی یا ناقص است: $file" }
+          }
+
+          Write-Host "خروجی‌های نهایی:"
+          Get-ChildItem dist | Format-Table Name, Length
+
+      - name: بارگذاری Artifact فایل اجرایی
+        uses: actions/upload-artifact@v4
+        with:
+          name: IndustrialSensorMonitor-EXE
+          path: dist/IndustrialSensorMonitor.exe
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: بارگذاری Artifact فایل نصب
+        uses: actions/upload-artifact@v4
+        with:
+          name: IndustrialSensorMonitor-Setup
+          path: dist/IndustrialSensorMonitor-Setup-x64.exe
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: بارگذاری Artifact نسخه قابل حمل
+        uses: actions/upload-artifact@v4
+        with:
+          name: IndustrialSensorMonitor-Portable
+          path: dist/IndustrialSensorMonitor-Portable-x64.zip
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: بارگذاری گزارش تست‌ها
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: TestResults
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: انتشار GitHub Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          $tag = $env:GITHUB_REF -replace '^refs/tags/', ''
+          $version = '${{ steps.version.outputs.version }}'
+
+          $notes = @(
+            "## Industrial Sensor Monitor $version",
+            "",
+            "سامانه ثبت و مدیریت اطلاعات سنسورهای صنعتی (C# / Windows Forms / SQL Server)",
+            "",
+            "### فایل‌های این نسخه",
+            "- ``IndustrialSensorMonitor-Setup-x64.exe`` — فایل نصب ویندوز (پیشنهادی)",
+            "- ``IndustrialSensorMonitor.exe`` — فایل اجرایی مستقل (Self-contained)",
+            "- ``IndustrialSensorMonitor-Portable-x64.zip`` — نسخه قابل حمل",
+            "",
+            "### پیش‌نیازها",
+            "- Windows 10/11 (64-bit)",
+            "- Microsoft SQL Server Express LocalDB یا SQL Server Express",
+            "- اجرای فایل ``Database\InitDatabase.sql`` (یا اجازه دادن به برنامه برای ایجاد خودکار دیتابیس)",
+            "",
+            "### نکته",
+            "- نیازی به نصب جداگانه .NET Runtime نیست (خروجی Self-contained).",
+            "- بسته نصبی، SQL Server را همراه ندارد.",
+            "- اطلاعات دیتابیس با حذف (Uninstall) برنامه پاک نمی‌شود."
+          ) -join "`n"
+
+          Set-Content -Path 'release-notes.md' -Value $notes -Encoding utf8NoBOM
+
+          gh release create $tag `
+            'dist/IndustrialSensorMonitor-Setup-x64.exe' `
+            'dist/IndustrialSensorMonitor.exe' `
+            'dist/IndustrialSensorMonitor-Portable-x64.zip' `
+            --title "Industrial Sensor Monitor $tag" `
+            --notes-file release-notes.md `
+            --verify-tag
+
+          if ($LASTEXITCODE -ne 0) { throw "ساخت GitHub Release با خطا مواجه شد." }
+          Write-Host "GitHub Release برای نسخه $tag با موفقیت منتشر شد."
