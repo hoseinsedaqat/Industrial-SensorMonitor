@@ -584,9 +584,9 @@ GitHub Actions به‌صورت خودکار نسخه را با شماره Tag م
 | Build در حالت Release | ✅ موفق | بدون خطای کامپایل |
 | اجرای تست‌های واحد (xUnit) | ✅ موفق | اعتبارسنجی ورودی‌ها، فهرست سنسورها و رشته اتصال |
 | تست یکپارچه‌سازی دیتابیس (SQL Server LocalDB واقعی) | ✅ موفق | اجرای دو‌باره `InitDatabase.sql`، ایجاد خودکار دیتابیس/جدول، درج و بازخوانی متن فارسی و مقدار اعشاری `123.4567` و مقدار منفی، بررسی مرتب‌سازی نزولی |
-| انتشار Self-contained Single File (`win-x64`) | ✅ موفق | `IndustrialSensorMonitor.exe` — حدود ۵۰ مگابایت |
-| ساخت فایل نصب با Inno Setup | ✅ موفق | `IndustrialSensorMonitor-Setup-x64.exe` — حدود ۳۷ مگابایت |
-| ساخت نسخه قابل حمل | ✅ موفق | `IndustrialSensorMonitor-Portable-x64.zip` — حدود ۵۰ مگابایت |
+| انتشار Self-contained Single File (`win-x64`) | ✅ موفق | `IndustrialSensorMonitor.exe` — حدود ۱۲۰ مگابایت (در Artifact فشرده، حدود ۴۸ مگابایت) |
+| ساخت فایل نصب با Inno Setup | ✅ موفق | `IndustrialSensorMonitor-Setup-x64.exe` — حدود ۳۶ مگابایت |
+| ساخت نسخه قابل حمل | ✅ موفق | `IndustrialSensorMonitor-Portable-x64.zip` — حدود ۴۸ مگابایت |
 | بارگذاری Artifacts | ✅ موفق | سه Artifact جداگانه در تب Actions |
 | انتشار GitHub Release | ✅ موفق | با ایجاد Tag از الگوی `v*` |
 
