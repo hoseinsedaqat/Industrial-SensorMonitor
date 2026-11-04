@@ -1,0 +1,34 @@
+# ------ .NET / Visual Studio ------
+bin/
+obj/
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.userprefs
+project.lock.json
+project.fragment.lock.json
+*.pdb
+*.log
+
+# ------ خروجی‌های Build و انتشار ------
+publish/
+portable/
+artifacts/
+TestResults/
+*.trx
+[Dd]ebug/
+[Rr]elease/
+x64/
+x86/
+
+# ------ پوشه dist ------
+# خروجی‌های نهایی فقط توسط GitHub Actions تولید و در Release منتشر می‌شوند
+dist/*
+!dist/.gitkeep
+
+# ------ سیستم‌عامل ------
+Thumbs.db
+Desktop.ini
+.DS_Store
