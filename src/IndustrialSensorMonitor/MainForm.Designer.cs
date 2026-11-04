@@ -1,3 +1,5 @@
+#nullable enable
+
 namespace IndustrialSensorMonitor;
 
 /// <summary>
@@ -202,7 +204,7 @@ partial class MainForm
         btnRefresh.ForeColor = System.Drawing.Color.White;
         btnRefresh.Margin = new System.Windows.Forms.Padding(0);
         btnRefresh.Name = "btnRefresh";
-        btnRefresh.Size = System.Drawing.Size(160, 38);
+        btnRefresh.Size = new System.Drawing.Size(160, 38);
         btnRefresh.Text = "به‌روزرسانی لیست";
         btnRefresh.UseVisualStyleBackColor = false;
 
