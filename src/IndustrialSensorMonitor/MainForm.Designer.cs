@@ -29,6 +29,8 @@ partial class MainForm
     private System.Windows.Forms.Button btnSave = null!;
     private System.Windows.Forms.Button btnClear = null!;
     private System.Windows.Forms.Button btnRefresh = null!;
+    private System.Windows.Forms.Button btnOpenDataFolder = null!;
+    private System.Windows.Forms.ToolTip tipMain = null!;
 
     private System.Windows.Forms.GroupBox grpRecords = null!;
     private System.Windows.Forms.DataGridView dgvSensorData = null!;
@@ -53,6 +55,7 @@ partial class MainForm
     private void InitializeComponent()
     {
         components = new System.ComponentModel.Container();
+        tipMain = new System.Windows.Forms.ToolTip(components!);
 
         tlpRoot = new System.Windows.Forms.TableLayoutPanel();
         pnlHeader = new System.Windows.Forms.Panel();
@@ -72,6 +75,7 @@ partial class MainForm
         btnSave = new System.Windows.Forms.Button();
         btnClear = new System.Windows.Forms.Button();
         btnRefresh = new System.Windows.Forms.Button();
+        btnOpenDataFolder = new System.Windows.Forms.Button();
         grpRecords = new System.Windows.Forms.GroupBox();
         dgvSensorData = new System.Windows.Forms.DataGridView();
         colId = new System.Windows.Forms.DataGridViewTextBoxColumn();
@@ -106,7 +110,7 @@ partial class MainForm
         lblAppSubtitle.Font = new System.Drawing.Font("Tahoma", 9.75F);
         lblAppSubtitle.ForeColor = System.Drawing.Color.FromArgb(203, 213, 225);
         lblAppSubtitle.Margin = new System.Windows.Forms.Padding(0, 2, 0, 0);
-        lblAppSubtitle.Text = "سامانه ثبت و مدیریت اطلاعات سنسورهای صنعتی";
+        lblAppSubtitle.Text = "سامانه ثبت و مدیریت اطلاعات سنسورهای صنعتی — ذخیره‌سازی محلی در فایل JSON";
 
         lblStatus.AutoSize = false;
         lblStatus.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -116,7 +120,7 @@ partial class MainForm
         lblStatus.MinimumSize = new System.Drawing.Size(300, 44);
         lblStatus.Size = new System.Drawing.Size(320, 44);
         lblStatus.TextAlign = System.Drawing.ContentAlignment.MiddleLeft;
-        lblStatus.Text = "در حال بررسی وضعیت دیتابیس...";
+        lblStatus.Text = "در حال بررسی فایل داده...";
 
         tlpHeader.ColumnCount = 2;
         tlpHeader.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
@@ -208,9 +212,21 @@ partial class MainForm
         btnRefresh.Text = "به‌روزرسانی لیست";
         btnRefresh.UseVisualStyleBackColor = false;
 
+        btnOpenDataFolder.BackColor = System.Drawing.Color.FromArgb(226, 232, 240);
+        btnOpenDataFolder.FlatAppearance.BorderSize = 0;
+        btnOpenDataFolder.FlatAppearance.MouseOverBackColor = System.Drawing.Color.FromArgb(203, 213, 225);
+        btnOpenDataFolder.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
+        btnOpenDataFolder.ForeColor = System.Drawing.Color.FromArgb(15, 23, 42);
+        btnOpenDataFolder.Margin = new System.Windows.Forms.Padding(0);
+        btnOpenDataFolder.Name = "btnOpenDataFolder";
+        btnOpenDataFolder.Size = new System.Drawing.Size(130, 38);
+        btnOpenDataFolder.Text = "پوشه داده";
+        btnOpenDataFolder.UseVisualStyleBackColor = false;
+
         flpButtons.Controls.Add(btnSave);
         flpButtons.Controls.Add(btnClear);
         flpButtons.Controls.Add(btnRefresh);
+        flpButtons.Controls.Add(btnOpenDataFolder);
         flpButtons.Dock = System.Windows.Forms.DockStyle.Fill;
         flpButtons.FlowDirection = System.Windows.Forms.FlowDirection.LeftToRight;
         flpButtons.Margin = new System.Windows.Forms.Padding(0, 6, 0, 0);
@@ -221,9 +237,10 @@ partial class MainForm
         tlpInput.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 46F));
         tlpInput.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize));
         tlpInput.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 54F));
-        tlpInput.RowCount = 2;
-        tlpInput.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
-        tlpInput.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 50F));
+        tlpInput.RowCount = 3;
+        tlpInput.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
+        tlpInput.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
+        tlpInput.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
         tlpInput.Dock = System.Windows.Forms.DockStyle.Fill;
         tlpInput.Margin = new System.Windows.Forms.Padding(0);
         tlpInput.Controls.Add(lblSensorName, 0, 0);
@@ -232,8 +249,8 @@ partial class MainForm
         tlpInput.Controls.Add(nudSensorValue, 3, 0);
         tlpInput.Controls.Add(lblUnit, 0, 1);
         tlpInput.Controls.Add(txtUnit, 1, 1);
-        tlpInput.Controls.Add(flpButtons, 2, 1);
-        tlpInput.SetColumnSpan(flpButtons, 2);
+        tlpInput.Controls.Add(flpButtons, 0, 2);
+        tlpInput.SetColumnSpan(flpButtons, 4);
 
         grpInput.BackColor = System.Drawing.Color.White;
         grpInput.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -373,7 +390,7 @@ partial class MainForm
         tlpRoot.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
         tlpRoot.RowCount = 3;
         tlpRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 104F));
-        tlpRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 200F));
+        tlpRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 215F));
         tlpRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
         tlpRoot.BackColor = System.Drawing.Color.FromArgb(241, 245, 249);
         tlpRoot.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -404,6 +421,7 @@ partial class MainForm
         btnSave.Click += btnSave_Click;
         btnClear.Click += btnClear_Click;
         btnRefresh.Click += btnRefresh_Click;
+        btnOpenDataFolder.Click += btnOpenDataFolder_Click;
         cmbSensorName.SelectedIndexChanged += cmbSensorName_SelectedIndexChanged;
 
         ((System.ComponentModel.ISupportInitialize)nudSensorValue).EndInit();

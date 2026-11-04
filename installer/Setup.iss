@@ -1,17 +1,18 @@
 ; =====================================================================
 ; اسکریپت ساخت فایل نصب برنامه Industrial Sensor Monitor
 ; ساخت با Inno Setup 6
-;   ISCC.exe installer\Setup.iss /DMyAppVersion=1.0.0
+;   ISCC.exe installer\Setup.iss /DMyAppVersion=1.1.0
 ; ---------------------------------------------------------------------
-; توجه: برنامه به SQL Server (LocalDB یا Express) نیاز دارد، اما این
-; بسته نصبی، SQL Server را همراه خود ندارد. در صورت نبود LocalDB
-; به کاربر پیام راهنما نمایش داده می‌شود.
+; این نسخه اطلاعات را در یک فایل JSON محلی ذخیره می‌کند و به هیچ
+; SQL Server یا سرویس دیگری نیاز ندارد.
+; فایل داده در مسیر زیر قرار می‌گیرد و با حذف برنامه پاک نمی‌شود:
+;   %LOCALAPPDATA%\IndustrialSensorMonitor\Data\sensors.json
 ; =====================================================================
 
 #define MyAppName "Industrial Sensor Monitor"
 #define MyAppNameFa "سامانه ثبت و مدیریت اطلاعات سنسورهای صنعتی"
 #ifndef MyAppVersion
-  #define MyAppVersion "1.0.0"
+  #define MyAppVersion "1.1.0"
 #endif
 #define MyAppPublisher "Industrial Sensor Monitor"
 #define MyAppExeName "IndustrialSensorMonitor.exe"
@@ -27,8 +28,8 @@ AppVersion={#MyAppVersion}
 AppVerName={#MyAppName} {#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 AppPublisherURL=https://github.com/hoseinsedaqat/Industrial-SensorMonitor
-AppSupportURL=https://github.com/hoseinsedaqat/Industrial-Sensor-Monitor/issues
-AppUpdatesURL=https://github.com/hoseinsedaqat/Industrial-Sensor-Monitor/releases
+AppSupportURL=https://github.com/hoseinsedaqat/Industrial-SensorMonitor/issues
+AppUpdatesURL=https://github.com/hoseinsedaqat/Industrial-SensorMonitor/releases
 VersionInfoVersion={#MyAppVersion}
 VersionInfoDescription={#MyAppName} Setup
 VersionInfoProductName={#MyAppName}
@@ -61,9 +62,8 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 ; فایل اجرایی و فایل تنظیمات (این دو باید کنار هم باشند)
 Source: "{#MyPublishDir}\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#MyPublishDir}\appsettings.json"; DestDir: "{app}"; Flags: ignoreversion
-; مستندات و اسکریپت دیتابیس (از ریشه مخزن خوانده می‌شوند)
+; مستندات (از ریشه مخزن خوانده می‌شود)
 Source: "..\README.md"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\Database\InitDatabase.sql"; DestDir: "{app}\Database"; Flags: ignoreversion
 ; در صورت وجود فایل‌های همراه اضافی در خروجی انتشار
 Source: "{#MyPublishDir}\*.dll"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 Source: "{#MyPublishDir}\*.json"; DestDir: "{app}"; Excludes: "appsettings.json"; Flags: ignoreversion skipifsourcedoesntexist
@@ -75,46 +75,20 @@ Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Comment: 
 
 [Run]
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#MyAppName}}"; Flags: nowait postinstall skipifsilent
-Filename: "{app}\Database\InitDatabase.sql"; Description: "مشاهده اسکریپت ایجاد دیتابیس"; Flags: shellexec postinstall skipifsilent unchecked
-
-[UninstallDelete]
-; فقط فایل‌های خود برنامه حذف می‌شوند.
-; هیچ فایل دیتابیسی در مسیر نصب وجود ندارد و اطلاعات SQL Server دست‌نخورده باقی می‌ماند.
-Type: filesandordirs; Name: "{app}\Database"
 
 [Code]
-const
-  LocalDbRegistryPath = 'SOFTWARE\Microsoft\Microsoft SQL Server Local DB\Installed Versions';
-  SqlExpressServiceKey = 'SYSTEM\CurrentControlSet\Services\MSSQL$SQLEXPRESS';
-
-{ آیا SQL Server LocalDB روی سیستم نصب است؟ }
-function IsLocalDbInstalled(): Boolean;
+{ مسیر فایل داده کاربر (بیرون از مسیر نصب، تا با حذف برنامه پاک نشود) }
+function GetUserDataPath(): String;
 begin
-  Result := RegKeyExists(HKLM, LocalDbRegistryPath)
-         or RegKeyExists(HKLM32, LocalDbRegistryPath);
+  Result := ExpandConstant('{localappdata}\IndustrialSensorMonitor\Data\sensors.json');
 end;
 
-{ آیا سرویس SQL Server Express روی سیستم نصب است؟ }
-function IsSqlExpressInstalled(): Boolean;
-var
-  DisplayName: String;
+procedure CurStepChanged(CurStep: TSetupStep);
 begin
-  Result := RegQueryStringValue(HKLM, SqlExpressServiceKey, 'DisplayName', DisplayName);
-end;
-
-{ نمایش هشدار در صورت نبود پیش‌نیاز دیتابیس (نصب متوقف نمی‌شود) }
-function PrepareToInstall(var NeedsRestart: Boolean): String;
-begin
-  Result := '';
-  if (not IsLocalDbInstalled()) and (not IsSqlExpressInstalled()) then
+  if CurStep = ssPostInstall then
   begin
-    if MsgBox('SQL Server LocalDB یا SQL Server Express روی این سیستم پیدا نشد.' + #13#10 +
-              'این برنامه برای ذخیره اطلاعات به یکی از این دو نیاز دارد.' + #13#10 + #13#10 +
-              'آیا ادامه نصب را می‌پذیرید؟ (پس از نصب باید SQL Server Express LocalDB را نصب کرده و سپس فایل InitDatabase.sql را اجرا کنید.)',
-              mbConfirmation, MB_YESNO) = IDNO then
-    begin
-      Result := 'نصب متوقف شد. ابتدا SQL Server Express LocalDB را نصب کنید.';
-    end;
+    { اشاره کوچک به محل ذخیره اطلاعات، بدون ایجاد هیچ فایلی در Program Files }
+    Log('Data file location: ' + GetUserDataPath());
   end;
 end;
 
@@ -122,8 +96,9 @@ procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 begin
   if CurUninstallStep = usPostUninstall then
   begin
-    MsgBox('برنامه حذف شد اما اطلاعات دیتابیس شما حذف نشده است.' + #13#10 +
-           'دیتابیس IndustrialSensorDb و جدول SensorData در SQL Server باقی می‌مانند.',
+    MsgBox('برنامه حذف شد اما اطلاعات شما حذف نشده است.' + #13#10 + #13#10 +
+           'فایل داده در این مسیر باقی می‌ماند:' + #13#10 +
+           GetUserDataPath(),
            mbInformation, MB_OK);
   end;
 end;

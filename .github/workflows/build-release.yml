@@ -68,41 +68,13 @@ jobs:
       - name: ساخت پروژه (Build)
         run: dotnet build ${{ env.SOLUTION_PATH }} -c ${{ env.CONFIGURATION }} --no-restore -p:Version=${{ steps.version.outputs.version }}
 
-      - name: بررسی در دسترس بودن SQL Server LocalDB
-        id: localdb
-        shell: pwsh
-        run: |
-          $available = 'false'
-          try {
-            $instances = & sqllocaldb info 2>$null
-            Write-Host "نمونه‌های LocalDB: $instances"
-            if ($instances -match 'MSSQLLocalDB') { $available = 'true' }
-          }
-          catch {
-            Write-Host "ابزار sqllocaldb در این محیط در دسترس نیست."
-          }
-          Write-Host "LocalDB Available: $available"
-          "available=$available" >> $env:GITHUB_OUTPUT
-
-      - name: اجرای تست‌های واحد
+      - name: اجرای تست‌ها
         run: >
           dotnet test ${{ env.TEST_PROJECT_PATH }}
           -c ${{ env.CONFIGURATION }}
           --no-build
           -p:Version=${{ steps.version.outputs.version }}
-          --filter "Category!=Integration"
-          --logger "trx;LogFileName=unit-tests.trx"
-          --results-directory TestResults
-
-      - name: اجرای تست‌های یکپارچه‌سازی دیتابیس (SQL Server LocalDB)
-        if: steps.localdb.outputs.available == 'true'
-        run: >
-          dotnet test ${{ env.TEST_PROJECT_PATH }}
-          -c ${{ env.CONFIGURATION }}
-          --no-build
-          -p:Version=${{ steps.version.outputs.version }}
-          --filter "Category=Integration"
-          --logger "trx;LogFileName=integration-tests.trx"
+          --logger "trx;LogFileName=test-results.trx"
           --results-directory TestResults
 
       - name: انتشار فایل اجرایی (Self-contained, Single File)
@@ -166,11 +138,10 @@ jobs:
           Copy-Item 'publish/win-x64/IndustrialSensorMonitor.exe' 'dist/IndustrialSensorMonitor.exe' -Force
 
           $portableRoot = 'portable/IndustrialSensorMonitor-Portable'
-          New-Item -ItemType Directory -Force -Path "$portableRoot/Database" | Out-Null
+          New-Item -ItemType Directory -Force -Path $portableRoot | Out-Null
           Copy-Item 'publish/win-x64/IndustrialSensorMonitor.exe' "$portableRoot/" -Force
           Copy-Item 'publish/win-x64/appsettings.json' "$portableRoot/" -Force
           Copy-Item 'README.md' "$portableRoot/README.md" -Force
-          Copy-Item 'Database/InitDatabase.sql' "$portableRoot/Database/InitDatabase.sql" -Force
 
           Compress-Archive -Path $portableRoot -DestinationPath 'dist/IndustrialSensorMonitor-Portable-x64.zip' -Force
 
@@ -232,7 +203,7 @@ jobs:
           $notes = @(
             "## Industrial Sensor Monitor $version",
             "",
-            "سامانه ثبت و مدیریت اطلاعات سنسورهای صنعتی (C# / Windows Forms / SQL Server)",
+            "سامانه ثبت و مدیریت اطلاعات سنسورهای صنعتی (C# / Windows Forms / ذخیره‌سازی JSON محلی)",
             "",
             "### فایل‌های این نسخه",
             "- ``IndustrialSensorMonitor-Setup-x64.exe`` — فایل نصب ویندوز (پیشنهادی)",
@@ -241,13 +212,13 @@ jobs:
             "",
             "### پیش‌نیازها",
             "- Windows 10/11 (64-bit)",
-            "- Microsoft SQL Server Express LocalDB یا SQL Server Express",
-            "- اجرای فایل ``Database\InitDatabase.sql`` (یا اجازه دادن به برنامه برای ایجاد خودکار دیتابیس)",
+            "- بدون نیاز به SQL Server یا هر دیتابیس دیگری (ذخیره‌سازی در فایل JSON محلی)",
             "",
             "### نکته",
             "- نیازی به نصب جداگانه .NET Runtime نیست (خروجی Self-contained).",
-            "- بسته نصبی، SQL Server را همراه ندارد.",
-            "- اطلاعات دیتابیس با حذف (Uninstall) برنامه پاک نمی‌شود."
+            "- اطلاعات در فایل ``sensors.json`` در مسیر ``%LOCALAPPDATA%\\IndustrialSensorMonitor\\Data`` ذخیره می‌شود.",
+            "- در اولین اجرا، فایل داده همراه با رکوردهای نمونه ساخته می‌شود.",
+            "- حذف (Uninstall) برنامه، فایل داده و اطلاعات ثبت‌شده را پاک نمی‌کند."
           ) -join "`n"
 
           Set-Content -Path 'release-notes.md' -Value $notes -Encoding utf8NoBOM
