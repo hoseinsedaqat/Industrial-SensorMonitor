@@ -5,18 +5,18 @@ namespace IndustrialSensorMonitor.Models;
 /// </summary>
 public sealed class SensorData
 {
-    /// <summary>شناسه رکورد؛ توسط دیتابیس (Identity) تولید می‌شود.</summary>
+    /// <summary>شناسه رکورد؛ به‌صورت خودکار و یکتا توسط لایه ذخیره‌سازی تعیین می‌شود.</summary>
     public int Id { get; set; }
 
     /// <summary>نام سنسور؛ متن فارسی و حداکثر ۱۰۰ کاراکتر.</summary>
     public string SensorName { get; set; } = string.Empty;
 
-    /// <summary>مقدار سنسور؛ از نوع decimal و متناظر با DECIMAL(18,4) در دیتابیس.</summary>
+    /// <summary>مقدار سنسور؛ از نوع decimal تا دقت چهار رقم اعشار در فایل JSON حفظ شود.</summary>
     public decimal Value { get; set; }
 
     /// <summary>واحد اندازه‌گیری؛ حداکثر ۳۰ کاراکتر.</summary>
     public string Unit { get; set; } = string.Empty;
 
-    /// <summary>تاریخ و ساعت ثبت؛ توسط تابع SYSDATETIME() در SQL Server تعیین می‌شود.</summary>
+    /// <summary>تاریخ و ساعت ثبت؛ در لحظه ذخیره‌سازی (ساعت محلی سیستم) تعیین می‌شود.</summary>
     public DateTime RecordDate { get; set; }
 }

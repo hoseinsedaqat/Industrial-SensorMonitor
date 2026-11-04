@@ -1,17 +1,18 @@
-using IndustrialSensorMonitor.Data;
 using IndustrialSensorMonitor.Diagnostics;
+using IndustrialSensorMonitor.Storage;
 using Microsoft.Extensions.Configuration;
 
 namespace IndustrialSensorMonitor;
 
 /// <summary>
 /// نقطه شروع اجرای برنامه.
-/// وظایف: بارگذاری رشته اتصال از appsettings.json، ساخت Repository و نمایش فرم اصلی.
+/// وظایف: خواندن مسیر فایل داده از appsettings.json، ساخت لایه ذخیره‌سازی و نمایش فرم اصلی.
+/// برنامه به هیچ سرور دیتابیسی نیاز ندارد و اطلاعات در یک فایل JSON محلی ذخیره می‌شود.
 /// </summary>
 internal static class Program
 {
     private const string SettingsFileName = "appsettings.json";
-    private const string ConnectionStringName = "SensorDb";
+    private const string DataFilePathKey = "Storage:DataFilePath";
 
     [STAThread]
     private static void Main()
@@ -24,23 +25,24 @@ internal static class Program
         Application.ThreadException += OnThreadException;
         AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
 
-        var connectionString = LoadConnectionString(out var configurationWarning);
+        var dataFilePath = LoadDataFilePath(out var configurationWarning);
 
         if (!string.IsNullOrEmpty(configurationWarning))
         {
-            ShowMessage(configurationWarning, "تنظیمات اتصال دیتابیس", MessageBoxIcon.Warning);
+            ShowMessage(configurationWarning, "تنظیمات ذخیره‌سازی", MessageBoxIcon.Warning);
         }
 
-        var repository = CreateRepository(connectionString);
+        var store = new SensorDataStore(dataFilePath);
 
-        Application.Run(new MainForm(repository));
+        Application.Run(new MainForm(store));
     }
 
     /// <summary>
-    /// خواندن رشته اتصال از فایل appsettings.json.
-    /// در صورت نبود فایل یا نامعتبر بودن آن، مقدار null برگردانده می‌شود تا از رشته اتصال پیش‌فرض استفاده شود.
+    /// خواندن مسیر فایل داده از appsettings.json.
+    /// اگر فایل وجود نداشته باشد یا مقدار آن خالی باشد، مسیر پیش‌فرض
+    /// (%LOCALAPPDATA%\IndustrialSensorMonitor\Data\sensors.json) استفاده می‌شود.
     /// </summary>
-    private static string? LoadConnectionString(out string? warningMessage)
+    private static string? LoadDataFilePath(out string? warningMessage)
     {
         warningMessage = null;
 
@@ -51,19 +53,16 @@ internal static class Program
                 .AddJsonFile(SettingsFileName, optional: true, reloadOnChange: false)
                 .Build();
 
-            var connectionString = configuration.GetConnectionString(ConnectionStringName);
+            var dataFilePath = configuration[DataFilePathKey];
 
-            if (string.IsNullOrWhiteSpace(connectionString))
+            if (string.IsNullOrWhiteSpace(dataFilePath))
             {
-                warningMessage =
-                    $"رشته اتصال «{ConnectionStringName}» در فایل {SettingsFileName} پیدا نشد.{Environment.NewLine}" +
-                    "برنامه با رشته اتصال پیش‌فرض (SQL Server LocalDB) اجرا می‌شود.";
-                AppLog.Info("رشته اتصال در appsettings.json پیدا نشد؛ استفاده از مقدار پیش‌فرض.");
+                AppLog.Info("مسیر فایل داده در appsettings.json تعیین نشده است؛ مسیر پیش‌فرض استفاده می‌شود.");
                 return null;
             }
 
-            AppLog.Info("رشته اتصال با موفقیت از appsettings.json خوانده شد.");
-            return connectionString;
+            AppLog.Info($"مسیر فایل داده از appsettings.json خوانده شد: {dataFilePath}");
+            return dataFilePath;
         }
         catch (Exception ex)
         {
@@ -71,31 +70,8 @@ internal static class Program
             AppLog.Error("خواندن فایل appsettings.json با خطا مواجه شد.", ex);
             warningMessage =
                 $"فایل {SettingsFileName} خوانا نیست یا ساختار JSON آن معتبر نیست.{Environment.NewLine}" +
-                "برنامه با رشته اتصال پیش‌فرض (SQL Server LocalDB) اجرا می‌شود.";
+                "برنامه با مسیر پیش‌فرض فایل داده اجرا می‌شود.";
             return null;
-        }
-    }
-
-    /// <summary>
-    /// ساخت Repository بر اساس رشته اتصال.
-    /// اگر رشته اتصال نامعتبر باشد، از مقدار پیش‌فرض استفاده می‌شود تا برنامه اجرا شود.
-    /// </summary>
-    private static SensorRepository CreateRepository(string? connectionString)
-    {
-        try
-        {
-            return new SensorRepository(new DatabaseConnection(connectionString));
-        }
-        catch (DatabaseConfigurationException ex)
-        {
-            AppLog.Error("رشته اتصال نامعتبر است؛ استفاده از رشته اتصال پیش‌فرض.", ex);
-            ShowMessage(
-                ex.Message + Environment.NewLine + Environment.NewLine +
-                "برنامه با رشته اتصال پیش‌فرض (SQL Server LocalDB) اجرا می‌شود.",
-                "رشته اتصال نامعتبر",
-                MessageBoxIcon.Warning);
-
-            return new SensorRepository(new DatabaseConnection(null));
         }
     }
 

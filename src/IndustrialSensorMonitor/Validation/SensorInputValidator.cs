@@ -1,7 +1,7 @@
 namespace IndustrialSensorMonitor.Validation;
 
 /// <summary>
-/// اعتبارسنجی ورودی‌های فرم ثبت سنسور، پیش از ارسال اطلاعات به دیتابیس.
+/// اعتبارسنجی ورودی‌های فرم ثبت سنسور، پیش از ذخیره‌سازی در فایل داده.
 /// این کلاس هیچ وابستگی به Windows Forms ندارد تا به‌سادگی قابل تست باشد.
 /// </summary>
 public static class SensorInputValidator

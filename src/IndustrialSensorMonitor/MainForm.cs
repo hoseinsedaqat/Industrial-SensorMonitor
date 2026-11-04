@@ -1,13 +1,14 @@
-using IndustrialSensorMonitor.Data;
+using System.Diagnostics;
 using IndustrialSensorMonitor.Diagnostics;
 using IndustrialSensorMonitor.Models;
+using IndustrialSensorMonitor.Storage;
 using IndustrialSensorMonitor.Validation;
 
 namespace IndustrialSensorMonitor;
 
 /// <summary>
-/// فرم اصلی برنامه: منطق رابط کاربری، اعتبارسنجی ورودی‌ها و ارتباط با دیتابیس.
-/// تمام عملیات دیتابیس از طریق <see cref="SensorRepository"/> انجام می‌شود.
+/// فرم اصلی برنامه: منطق رابط کاربری، اعتبارسنجی ورودی‌ها و ارتباط با لایه ذخیره‌سازی.
+/// تمام عملیات ذخیره‌سازی از طریق <see cref="SensorDataStore"/> (فایل JSON محلی) انجام می‌شود.
 /// </summary>
 public partial class MainForm : Form
 {
@@ -15,16 +16,17 @@ public partial class MainForm : Form
     private static readonly Color StatusWarningColor = Color.FromArgb(252, 211, 77);
     private static readonly Color StatusErrorColor = Color.FromArgb(248, 113, 113);
 
-    private readonly SensorRepository _repository;
+    private readonly SensorDataStore _store;
     private IReadOnlyList<SensorData> _records = Array.Empty<SensorData>();
 
-    /// <summary>ساخت فرم اصلی بر اساس Repository آماده‌شده در Program.cs.</summary>
-    public MainForm(SensorRepository repository)
+    /// <summary>ساخت فرم اصلی بر اساس لایه ذخیره‌سازی آماده‌شده در Program.cs.</summary>
+    public MainForm(SensorDataStore store)
     {
-        _repository = repository ?? throw new ArgumentNullException(nameof(repository));
+        _store = store ?? throw new ArgumentNullException(nameof(store));
 
         InitializeComponent();
         LoadSensorList();
+        ApplyStorageTooltips();
     }
 
     /// <summary>پر کردن ComboBox سنسورها و انتخاب سنسور پیش‌فرض.</summary>
@@ -45,13 +47,21 @@ public partial class MainForm : Form
         }
     }
 
+    /// <summary>نمایش مسیر فایل داده به‌صورت Tooltip روی کنترل‌های مرتبط.</summary>
+    private void ApplyStorageTooltips()
+    {
+        tipMain.SetToolTip(lblStatus, "فایل داده: " + _store.DataFilePath);
+        tipMain.SetToolTip(grpRecords, "فایل داده: " + _store.DataFilePath);
+        tipMain.SetToolTip(btnOpenDataFolder, "باز کردن پوشه فایل داده: " + _store.DataDirectory);
+    }
+
     // ---------------------------------------------------------------------
     // رویدادهای فرم
     // ---------------------------------------------------------------------
 
     private async void MainForm_Load(object? sender, EventArgs e)
     {
-        await PrepareDatabaseAsync();
+        await PrepareStorageAsync();
     }
 
     private void cmbSensorName_SelectedIndexChanged(object? sender, EventArgs e)
@@ -84,11 +94,11 @@ public partial class MainForm : Form
         SetBusy(true);
         try
         {
-            var result = await Task.Run(() => _repository.InsertSensorData(data));
+            var result = await Task.Run(() => _store.InsertSensorData(data));
 
             if (!result.Success)
             {
-                AppLog.Error("ثبت اطلاعات سنسور ناموفق بود: " + result.Message, result.Error);
+                AppLog.Error("ذخیره اطلاعات سنسور ناموفق بود: " + result.Message, result.Error);
                 ShowMessage(result.Message, "خطا در ثبت اطلاعات", MessageBoxIcon.Error);
                 return;
             }
@@ -112,91 +122,84 @@ public partial class MainForm : Form
 
     private async void btnRefresh_Click(object? sender, EventArgs e)
     {
-        await CheckDatabaseAsync(allowAutomaticInitialization: true);
+        await PrepareStorageAsync();
     }
 
-    // ---------------------------------------------------------------------
-    // منطق دیتابیس
-    // ---------------------------------------------------------------------
-
-    /// <summary>
-    /// آماده‌سازی اولیه: بررسی اتصال و در صورت امکان ایجاد خودکار دیتابیس و جدول.
-    /// </summary>
-    private async Task PrepareDatabaseAsync()
+    private void btnOpenDataFolder_Click(object? sender, EventArgs e)
     {
-        var report = await CheckDatabaseAsync(allowAutomaticInitialization: true);
-
-        if (!report.IsReady)
+        try
         {
+            Directory.CreateDirectory(_store.DataDirectory);
+
+            var arguments = File.Exists(_store.DataFilePath)
+                ? $"/select,\"{_store.DataFilePath}\""
+                : $"\"{_store.DataDirectory}\"";
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "explorer.exe",
+                Arguments = arguments,
+                UseShellExecute = true
+            });
+        }
+        catch (Exception ex)
+        {
+            AppLog.Error("باز کردن پوشه فایل داده ناموفق بود.", ex);
             ShowMessage(
-                report.Message + Environment.NewLine + Environment.NewLine +
-                "برای رفع مشکل:" + Environment.NewLine +
-                "۱) نصب بودن SQL Server LocalDB یا SQL Server Express را بررسی کنید." + Environment.NewLine +
-                "۲) رشته اتصال را در فایل appsettings.json اصلاح کنید." + Environment.NewLine +
-                "۳) در صورت نبود دیتابیس یا جدول، فایل Database\\InitDatabase.sql را در SQL Server Management Studio اجرا کنید.",
-                "وضعیت دیتابیس",
+                $"باز کردن پوشه فایل داده ممکن نشد.{Environment.NewLine}{_store.DataDirectory}",
+                "خطا",
                 MessageBoxIcon.Warning);
         }
     }
 
+    // ---------------------------------------------------------------------
+    // منطق ذخیره‌سازی
+    // ---------------------------------------------------------------------
+
     /// <summary>
-    /// بررسی وضعیت دیتابیس و به‌روزرسانی وضعیت نمایش‌داده‌شده در سربرگ فرم.
-    /// در صورت نبود دیتابیس یا جدول، ایجاد خودکار انجام می‌شود.
+    /// بررسی و آماده‌سازی فایل داده (ساخت فایل همراه با داده‌های نمونه در اولین اجرا)
+    /// و سپس خواندن اطلاعات از فایل.
     /// </summary>
-    private async Task<DatabaseStatusReport> CheckDatabaseAsync(bool allowAutomaticInitialization)
+    private async Task PrepareStorageAsync()
     {
         SetBusy(true);
-        ApplyStatus("در حال بررسی وضعیت دیتابیس...", StatusWarningColor);
+        ApplyStatus("در حال بررسی فایل داده...", StatusWarningColor);
 
         try
         {
-            var report = await Task.Run(() => _repository.CheckDatabaseStatus());
+            var report = await Task.Run(() => _store.EnsureStorage());
 
-            if (allowAutomaticInitialization && report.CanCreateAutomatically)
+            if (!report.IsReady)
             {
-                AppLog.Info("دیتابیس یا جدول موجود نیست؛ تلاش برای ایجاد خودکار.");
-                var initializeResult = await Task.Run(() => _repository.InitializeDatabase());
-                var updatedReport = await Task.Run(() => _repository.CheckDatabaseStatus());
-
-                if (!updatedReport.IsReady)
-                {
-                    // ایجاد خودکار ممکن نشد؛ پیام راهنما نمایش داده می‌شود
-                    ApplyStatus(updatedReport.Message, StatusErrorColor);
-                    return updatedReport;
-                }
-
-                if (initializeResult.Success && report.Status == DatabaseStatus.DatabaseMissing)
-                {
-                    ShowMessage(
-                        initializeResult.Message,
-                        "آماده‌سازی دیتابیس",
-                        MessageBoxIcon.Information);
-                }
-
-                report = updatedReport;
-            }
-
-            if (report.IsReady)
-            {
-                ApplyStatus(report.Message, StatusReadyColor);
-                await LoadRecordsAsync();
-            }
-            else
-            {
-                ApplyStatus(report.Message, StatusErrorColor);
+                ApplyStatus("فایل داده در دسترس نیست", StatusErrorColor);
                 ClearRecords();
+                ShowMessage(
+                    report.Message + Environment.NewLine + Environment.NewLine +
+                    "راهنمایی:" + Environment.NewLine +
+                    "۱) دسترسی نوشتن در مسیر فایل داده را بررسی کنید." + Environment.NewLine +
+                    "۲) می‌توانید مسیر دیگری را در فایل appsettings.json (کلید Storage:DataFilePath) تعیین کنید." + Environment.NewLine +
+                    "۳) اگر فایل با برنامه دیگری باز است، آن را ببندید و دوباره تلاش کنید.",
+                    "فایل داده",
+                    MessageBoxIcon.Warning);
+                return;
             }
 
-            return report;
+            await LoadRecordsAsync();
+
+            ApplyStatus(
+                $"ذخیره‌سازی محلی (JSON) آماده است — {report.RecordCount} رکورد",
+                StatusReadyColor);
+
+            if (report.HasChanged)
+            {
+                ShowMessage(report.Message, "آماده‌سازی فایل داده", MessageBoxIcon.Information);
+            }
         }
         catch (Exception ex)
         {
-            AppLog.Error("بررسی وضعیت دیتابیس با خطای غیرمنتظره مواجه شد.", ex);
-            ApplyStatus("بررسی وضعیت دیتابیس با خطا مواجه شد.", StatusErrorColor);
+            AppLog.Error("بررسی فایل داده با خطای غیرمنتظره مواجه شد.", ex);
+            ApplyStatus("بررسی فایل داده با خطا مواجه شد.", StatusErrorColor);
             ClearRecords();
-            return new DatabaseStatusReport(
-                DatabaseStatus.ServerUnavailable,
-                "بررسی وضعیت دیتابیس با خطا مواجه شد. جزئیات فنی در فایل گزارش برنامه ثبت شد.");
         }
         finally
         {
@@ -204,13 +207,13 @@ public partial class MainForm : Form
         }
     }
 
-    /// <summary>خواندن رکوردها از دیتابیس و نمایش آن‌ها در جدول.</summary>
+    /// <summary>خواندن رکوردها از فایل JSON و نمایش آن‌ها در جدول.</summary>
     private async Task LoadRecordsAsync()
     {
         SetBusy(true);
         try
         {
-            var result = await Task.Run(() => _repository.GetSensorData());
+            var result = await Task.Run(() => _store.GetSensorData());
 
             if (!result.Success)
             {
@@ -223,6 +226,8 @@ public partial class MainForm : Form
             dgvSensorData.DataSource = null;
             dgvSensorData.DataSource = new List<SensorData>(_records);
             grpRecords.Text = $"اطلاعات ثبت‌شده ({_records.Count} رکورد)";
+
+            ApplyStatus($"ذخیره‌سازی محلی (JSON) آماده است — {_records.Count} رکورد", StatusReadyColor);
         }
         finally
         {
@@ -249,7 +254,7 @@ public partial class MainForm : Form
 
     /// <summary>
     /// پاک کردن فیلدهای ورودی و بازگرداندن آن‌ها به مقدار پیش‌فرض.
-    /// هیچ اطلاعاتی از دیتابیس حذف نمی‌شود.
+    /// هیچ اطلاعاتی از فایل داده حذف نمی‌شود.
     /// </summary>
     private void ClearInputs()
     {
@@ -263,7 +268,7 @@ public partial class MainForm : Form
         cmbSensorName.Focus();
     }
 
-    /// <summary>خالی کردن جدول (مثلاً زمانی که دیتابیس در دسترس نیست).</summary>
+    /// <summary>خالی کردن جدول (مثلاً زمانی که فایل داده در دسترس نیست).</summary>
     private void ClearRecords()
     {
         _records = Array.Empty<SensorData>();
@@ -271,20 +276,21 @@ public partial class MainForm : Form
         grpRecords.Text = "اطلاعات ثبت‌شده";
     }
 
-    /// <summary>نمایش وضعیت دیتابیس در سربرگ فرم.</summary>
+    /// <summary>نمایش وضعیت ذخیره‌سازی در سربرگ فرم.</summary>
     private void ApplyStatus(string message, Color color)
     {
         lblStatus.Text = message;
         lblStatus.ForeColor = color;
     }
 
-    /// <summary>قفل کردن کنترل‌ها هنگام انجام عملیات دیتابیس.</summary>
+    /// <summary>قفل کردن کنترل‌ها هنگام انجام عملیات فایل.</summary>
     private void SetBusy(bool isBusy)
     {
         UseWaitCursor = isBusy;
         btnSave.Enabled = !isBusy;
         btnClear.Enabled = !isBusy;
         btnRefresh.Enabled = !isBusy;
+        btnOpenDataFolder.Enabled = !isBusy;
         cmbSensorName.Enabled = !isBusy;
         nudSensorValue.Enabled = !isBusy;
         txtUnit.Enabled = !isBusy;
