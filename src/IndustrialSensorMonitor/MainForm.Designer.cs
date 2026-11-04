@@ -158,16 +158,24 @@ partial class MainForm
         lblSensorValue.Margin = new System.Windows.Forms.Padding(0, 0, 10, 0);
         lblSensorValue.Text = "مقدار سنسور:";
 
-        nudSensorValue.Anchor = System.Windows.Forms.AnchorStyles.Left;
+        nudSensorValue.Anchor = System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
+        nudSensorValue.BackColor = System.Drawing.Color.White;
+        nudSensorValue.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
         nudSensorValue.DecimalPlaces = 4;
+        nudSensorValue.Font = new System.Drawing.Font("Tahoma", 10F);
         nudSensorValue.Increment = 0.1M;
+        nudSensorValue.InterceptArrowKeys = true;
         nudSensorValue.Maximum = 1000000M;
         nudSensorValue.Minimum = -1000000M;
-        nudSensorValue.ThousandsSeparator = true;
         nudSensorValue.Margin = new System.Windows.Forms.Padding(0);
         nudSensorValue.Name = "nudSensorValue";
-        nudSensorValue.Size = new System.Drawing.Size(190, 27);
-        nudSensorValue.TextAlign = System.Windows.Forms.HorizontalAlignment.Right;
+        nudSensorValue.ReadOnly = false;
+        nudSensorValue.Size = new System.Drawing.Size(230, 30);
+        // اعداد باید چپ‌به‌راست نمایش داده شوند؛ در حالت راست‌به‌چپ،
+        // ناحیه تایپ کنترل NumericUpDown خالی و غیرقابل استفاده می‌شود
+        nudSensorValue.RightToLeft = System.Windows.Forms.RightToLeft.No;
+        nudSensorValue.TextAlign = System.Windows.Forms.HorizontalAlignment.Left;
+        nudSensorValue.ThousandsSeparator = true;
 
         lblUnit.AutoSize = true;
         lblUnit.Anchor = System.Windows.Forms.AnchorStyles.Left;
@@ -234,9 +242,9 @@ partial class MainForm
 
         tlpInput.ColumnCount = 4;
         tlpInput.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize));
-        tlpInput.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 46F));
+        tlpInput.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 50F));
         tlpInput.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize));
-        tlpInput.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 54F));
+        tlpInput.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Absolute, 250F));
         tlpInput.RowCount = 3;
         tlpInput.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
         tlpInput.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 40F));
@@ -423,6 +431,7 @@ partial class MainForm
         btnRefresh.Click += btnRefresh_Click;
         btnOpenDataFolder.Click += btnOpenDataFolder_Click;
         cmbSensorName.SelectedIndexChanged += cmbSensorName_SelectedIndexChanged;
+        lblSensorValue.Click += lblSensorValue_Click;
 
         ((System.ComponentModel.ISupportInitialize)nudSensorValue).EndInit();
         ((System.ComponentModel.ISupportInitialize)dgvSensorData).EndInit();

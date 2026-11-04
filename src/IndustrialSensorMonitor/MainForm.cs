@@ -25,8 +25,27 @@ public partial class MainForm : Form
         _store = store ?? throw new ArgumentNullException(nameof(store));
 
         InitializeComponent();
+        ConfigureValueInput();
         LoadSensorList();
-        ApplyStorageTooltips();
+        ApplyTooltips();
+    }
+
+    /// <summary>
+    /// تنظیم فیلد مقدار سنسور برای ورود عدد.
+    /// در فرم راست‌به‌چپ، کنترل NumericUpDown ناحیه تایپ خود را خالی نشان می‌دهد؛
+    /// چون اعداد ماهیتاً چپ‌به‌راست هستند، این کنترل و متن داخلی آن LTR تنظیم می‌شود.
+    /// </summary>
+    private void ConfigureValueInput()
+    {
+        nudSensorValue.RightToLeft = System.Windows.Forms.RightToLeft.No;
+        nudSensorValue.TextAlign = System.Windows.Forms.HorizontalAlignment.Left;
+        nudSensorValue.ReadOnly = false;
+        nudSensorValue.Enabled = true;
+
+        if (nudSensorValue.Controls.Count > 0)
+        {
+            nudSensorValue.Controls[0].RightToLeft = System.Windows.Forms.RightToLeft.No;
+        }
     }
 
     /// <summary>پر کردن ComboBox سنسورها و انتخاب سنسور پیش‌فرض.</summary>
@@ -47,12 +66,15 @@ public partial class MainForm : Form
         }
     }
 
-    /// <summary>نمایش مسیر فایل داده به‌صورت Tooltip روی کنترل‌های مرتبط.</summary>
-    private void ApplyStorageTooltips()
+    /// <summary>نمایش راهنما و مسیر فایل داده به‌صورت Tooltip روی کنترل‌های مرتبط.</summary>
+    private void ApplyTooltips()
     {
         tipMain.SetToolTip(lblStatus, "فایل داده: " + _store.DataFilePath);
         tipMain.SetToolTip(grpRecords, "فایل داده: " + _store.DataFilePath);
         tipMain.SetToolTip(btnOpenDataFolder, "باز کردن پوشه فایل داده: " + _store.DataDirectory);
+        tipMain.SetToolTip(nudSensorValue, "مقدار سنسور را در همین کادر تایپ کنید (تا ۴ رقم اعشار؛ مقادیر منفی و صفر هم مجاز است).");
+        tipMain.SetToolTip(lblSensorValue, "مقدار سنسور را در همین کادر تایپ کنید (تا ۴ رقم اعشار؛ مقادیر منفی و صفر هم مجاز است).");
+        tipMain.SetToolTip(txtUnit, "واحد اندازه‌گیری؛ با انتخاب سنسور به‌صورت خودکار پر می‌شود و قابل ویرایش است.");
     }
 
     // ---------------------------------------------------------------------
@@ -62,6 +84,13 @@ public partial class MainForm : Form
     private async void MainForm_Load(object? sender, EventArgs e)
     {
         await PrepareStorageAsync();
+    }
+
+    private void lblSensorValue_Click(object? sender, EventArgs e)
+    {
+        // کلیک روی برچسب، Focus را به کادر مقدار منتقل می‌کند
+        nudSensorValue.Focus();
+        nudSensorValue.Select(0, nudSensorValue.Text.Length);
     }
 
     private void cmbSensorName_SelectedIndexChanged(object? sender, EventArgs e)
