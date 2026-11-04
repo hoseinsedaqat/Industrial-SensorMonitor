@@ -20,4 +20,11 @@
     <ProjectReference Include="..\..\src\IndustrialSensorMonitor\IndustrialSensorMonitor.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <!-- اسکریپت دیتابیس برای تست یکپارچه‌سازی -->
+    <None Include="..\..\Database\InitDatabase.sql" Link="TestData\InitDatabase.sql">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
 </Project>

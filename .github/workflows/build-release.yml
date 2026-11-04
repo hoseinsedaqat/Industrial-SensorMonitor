@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - test
+      - arena/9727baab-industrial-sensormonitor
     tags:
       - 'v*'
   workflow_dispatch:
@@ -68,13 +69,41 @@ jobs:
       - name: ساخت پروژه (Build)
         run: dotnet build ${{ env.SOLUTION_PATH }} -c ${{ env.CONFIGURATION }} --no-restore -p:Version=${{ steps.version.outputs.version }}
 
-      - name: اجرای تست‌ها
+      - name: بررسی در دسترس بودن SQL Server LocalDB
+        id: localdb
+        shell: pwsh
+        run: |
+          $available = 'false'
+          try {
+            $instances = & sqllocaldb info 2>$null
+            Write-Host "نمونه‌های LocalDB: $instances"
+            if ($instances -match 'MSSQLLocalDB') { $available = 'true' }
+          }
+          catch {
+            Write-Host "ابزار sqllocaldb در این محیط در دسترس نیست."
+          }
+          Write-Host "LocalDB Available: $available"
+          "available=$available" >> $env:GITHUB_OUTPUT
+
+      - name: اجرای تست‌های واحد
         run: >
           dotnet test ${{ env.TEST_PROJECT_PATH }}
           -c ${{ env.CONFIGURATION }}
           --no-build
           -p:Version=${{ steps.version.outputs.version }}
-          --logger "trx;LogFileName=test-results.trx"
+          --filter "Category!=Integration"
+          --logger "trx;LogFileName=unit-tests.trx"
+          --results-directory TestResults
+
+      - name: اجرای تست‌های یکپارچه‌سازی دیتابیس (SQL Server LocalDB)
+        if: steps.localdb.outputs.available == 'true'
+        run: >
+          dotnet test ${{ env.TEST_PROJECT_PATH }}
+          -c ${{ env.CONFIGURATION }}
+          --no-build
+          -p:Version=${{ steps.version.outputs.version }}
+          --filter "Category=Integration"
+          --logger "trx;LogFileName=integration-tests.trx"
           --results-directory TestResults
 
       - name: انتشار فایل اجرایی (Self-contained, Single File)
