@@ -31,7 +31,7 @@ jobs:
 
     steps:
       - name: دریافت سورس کد
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: نصب .NET SDK
         uses: actions/setup-dotnet@v4
