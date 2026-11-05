@@ -23,6 +23,44 @@ public static class AppLog
     /// <summary>ثبت یک خطا همراه با جزئیات فنی.</summary>
     public static void Error(string message, Exception? exception) => Write("ERROR", message, exception);
 
+    /// <summary>
+    /// پاکسازی فایل‌های گزارش قدیمی‌تر از تعداد روز مشخص.
+    /// این متد در شروع برنامه فراخوانی می‌شود تا پوشه گزارش‌ها بی‌نهایت رشد نکند.
+    /// </summary>
+    /// <param name="directory">پوشه گزارش‌ها.</param>
+    /// <param name="keepDays">تعداد روزی که گزارش‌ها نگهداری می‌شوند.</param>
+    /// <param name="now">زمان مرجع (برای تست).</param>
+    /// <returns>تعداد فایل‌های حذف‌شده.</returns>
+    public static int Cleanup(string directory, int keepDays, DateTime now)
+    {
+        if (string.IsNullOrWhiteSpace(directory) || keepDays <= 0 || !Directory.Exists(directory))
+        {
+            return 0;
+        }
+
+        var removed = 0;
+
+        try
+        {
+            foreach (var filePath in Directory.GetFiles(directory, "app-*.log"))
+            {
+                var file = new FileInfo(filePath);
+
+                if (now - file.LastWriteTime > TimeSpan.FromDays(keepDays))
+                {
+                    file.Delete();
+                    removed++;
+                }
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            Debug.WriteLine("پاکسازی گزارش‌های قدیمی ناموفق بود: " + ex.Message);
+        }
+
+        return removed;
+    }
+
     private static void Write(string level, string message, Exception? exception)
     {
         var text = exception is null

@@ -8,7 +8,7 @@
 [![Latest Release](https://img.shields.io/github/v/release/hoseinsedaqat/Industrial-SensorMonitor?label=release)](https://github.com/hoseinsedaqat/Industrial-SensorMonitor/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-> **نسخه فعلی:** `1.2.0`
+> **نسخه فعلی:** `1.3.0`
 > **پلتفرم:** Windows 10 / 11 — 64 bit
 > **فریم‌ورک:** .NET 10 (`net10.0-windows`)
 > **بدون نیاز به SQL Server، بدون سرور، بدون نصب دیتابیس**
@@ -346,6 +346,13 @@ dotnet test tests/IndustrialSensorMonitor.Tests/IndustrialSensorMonitor.Tests.cs
 | `SensorChartDataTests` | ترتیب زمانی داده نمودار، محدودیت تعداد نقاط و فیلتر بر اساس سنسور |
 | `SensorSimulatorTests` | ماندن مقدارهای شبیه‌سازی‌شده داخل محدوده مجاز و گرد شدن به دو رقم اعشار |
 | `UpdateCheckerTests` | مقایسه نسخه‌ها و نرمال‌سازی تگ‌های `v1.2.0` |
+| `RecordSorterTests` | مرتب‌سازی صعودی/نزولی با کلیک سرستون و ترتیب پایدار |
+| `ValueStatisticsTests` | کمینه/بیشینه/میانگین/مجموع و آماره تفکیک‌شده هر سنسور |
+| `AlarmDetectorTests` | سطح‌بندی عادی/هشدار/بحرانی بر اساس آستانه هر سنسور |
+| `ChartSeriesBuilderTests` | بازه‌های زمانی نمودار، چندسری و محدودیت تعداد نقاط |
+| `UserSettingsStoreTests` | ذخیره/بازیابی تنظیمات پنجره، فایل خراب و اصلاح مقادیر خارج از بازه |
+| `StorageDurabilityTests` | فهرست/بازگردانی نسخه‌های پشتیبان، بررسی سلامت داده، حذف گروهی و پاکسازی گزارش |
+| `CsvAlarmExportTests` | سرستون‌ها و محتوای CSV گزارش هشدارها |
 
 این تست‌ها روی فایل موقت اجرا می‌شوند و به هیچ دیتابیسی نیاز ندارند.
 
@@ -410,6 +417,7 @@ Workflow در مسیر `.github/workflows/build-release.yml` قرار دارد �
 | رویداد | توضیح |
 |---|---|
 | `push` به شاخه `main` (و `test`) | ساخت خودکار نسخه در هر Push |
+| `pull_request` به `main`/`test` | اجرای Build، تست‌ها و پوشش کد روی هر Pull Request |
 | `workflow_dispatch` | اجرای دستی از صفحه Actions |
 | `push` تگ `v*` | ساخت نسخه + ایجاد GitHub Release |
 
@@ -434,8 +442,8 @@ Workflow در مسیر `.github/workflows/build-release.yml` قرار دارد �
 **انتشار نسخه جدید با Tag:**
 
 ```bash
-git tag v1.2.0
-git push origin v1.2.0
+git tag v1.3.0
+git push origin v1.3.0
 ```
 
 ---
@@ -529,6 +537,13 @@ IndustrialSensorMonitor/
 │       ├── MainForm.Designer.cs       # طراحی فرم (کنترل‌ها، چیدمان، رنگ‌ها)
 │       ├── RecordEditForm.cs          # پنجره ویرایش رکورد
 │       ├── AboutForm.cs               # پنجره «درباره برنامه» و بررسی نسخه جدید
+│       ├── RestoreBackupForm.cs       # فهرست و بازگردانی نسخه‌های پشتیبان
+│       ├── AlarmReportForm.cs         # گزارش هشدارها + خروجی CSV
+│       ├── UI/                        # لایه طراحی: تم، کارت، دکمه، آیکون برداری، سربرگ و استایل جدول
+│       ├── Sorting/                   # مرتب‌سازی جدول بر اساس سرستون
+│       ├── Statistics/                # آماره‌های توصیفی و آماره هر سنسور
+│       ├── Analysis/                  # تشخیص هشدار بر اساس آستانه سنسور
+│       ├── Settings/                  # ذخیره/بازیابی تنظیمات پنجره
 │       ├── appsettings.json           # مسیر فایل داده
 │       ├── IndustrialSensorMonitor.csproj
 │       ├── Assets/
@@ -544,7 +559,8 @@ IndustrialSensorMonitor/
 │       │   └── CsvImporter.cs         # ورود اطلاعات از CSV با اعتبارسنجی
 │       ├── Charts/
 │       │   ├── SensorChartData.cs     # آماده‌سازی داده نمودار
-│       │   └── SensorChartPanel.cs    # رسم نمودار خطی با GDI+
+│       │   ├── ChartSeries.cs         # بازه زمانی و سری‌های چندگانه نمودار
+│       │   └── SensorChartPanel.cs    # رسم نمودار چندسری با GDI+ و خروجی PNG
 │       ├── Formatting/
 │       │   ├── PersianDateFormatter.cs# تبدیل تاریخ میلادی/شمسی
 │       │   └── NumberTextParser.cs    # خواندن اعداد با ارقام فارسی/عربی
@@ -581,12 +597,25 @@ IndustrialSensorMonitor/
 │       ├── CsvImporterTests.cs
 │       ├── SensorChartDataTests.cs
 │       ├── SensorSimulatorTests.cs
-│       └── UpdateCheckerTests.cs
+│       ├── UpdateCheckerTests.cs
+│       ├── RecordSorterTests.cs
+│       ├── ValueStatisticsTests.cs
+│       ├── AlarmDetectorTests.cs
+│       ├── ChartSeriesBuilderTests.cs
+│       ├── UserSettingsStoreTests.cs
+│       ├── StorageDurabilityTests.cs
+│       └── CsvAlarmExportTests.cs
 │
 ├── dist/                              # خروجی‌های نهایی (توسط GitHub Actions ساخته می‌شود)
 ├── CHANGELOG.md                       # تاریخچه تغییرات نسخه‌ها
 ├── LICENSE                            # مجوز MIT
+├── docs/
+│   ├── RELEASE_PROCESS.md             # فرایند انتشار نسخه
+│   └── BRANCH_PROTECTION.md           # راهنمای حفاظت شاخه test
 ├── Directory.Build.props              # تنظیمات مشترک همه پروژه‌ها
+├── Directory.Packages.props           # مدیریت متمرکز نسخه پکیج‌های NuGet
+├── global.json                        # نسخه SDK مورد استفاده
+├── .gitattributes                     # یکسان‌سازی پایان خط
 ├── .editorconfig                      # قواعد قالب‌بندی و سبک کد
 ├── README.md
 └── .gitignore
@@ -601,9 +630,9 @@ IndustrialSensorMonitor/
 
 | مورد | مقدار |
 |---|---|
-| نسخه | `1.2.0` |
+| نسخه | `1.3.0` |
 | الگوی نسخه‌بندی | `Major.Minor.Patch` |
-| محل تعریف نسخه | `src/IndustrialSensorMonitor/IndustrialSensorMonitor.csproj` و `installer/Setup.iss` |
+| محل تعریف نسخه | `src/IndustrialSensorMonitor/IndustrialSensorMonitor.csproj`، `installer/Setup.iss` و `CHANGELOG.md` (با بررسی خودکار در CI) |
 
 **تغییرات نسخه ۱٫۲٫۰:**
 
@@ -635,13 +664,13 @@ IndustrialSensorMonitor/
 
 برای انتشار نسخه جدید:
 
-1. مقدار `<Version>` را در فایل csproj و مقدار پیش‌فرض `MyAppVersion` در `installer/Setup.iss` به‌روزرسانی کنید.
-2. تغییرات را Commit و Push کنید.
+1. مقدار `<Version>` را در فایل csproj، مقدار پیش‌فرض `MyAppVersion` در `installer/Setup.iss` و بالاترین بخش `CHANGELOG.md` را یکسان به‌روزرسانی کنید (راهنمای کامل: [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md)).
+2. تغییرات را Commit و Push کنید (از طریق Pull Request؛ تنظیم حفاظت شاخه: [docs/BRANCH_PROTECTION.md](docs/BRANCH_PROTECTION.md)).
 3. Tag جدید بسازید و Push کنید:
 
 ```bash
-git tag v1.2.0
-git push origin v1.2.0
+git tag v1.3.0
+git push origin v1.3.0
 ```
 
 ---
@@ -723,6 +752,54 @@ git push origin v1.2.0
 
 ---
 
+## ۲۴. قابلیت‌های نسخه ۱٫۳٫۰
+
+### الف) بازطراحی ظاهر
+
+- تم روشن با پالت متمرکز در `UI/AppTheme.cs` (پس‌زمینه، سطح، حاشیه، رنگ تأکیدی، رنگ‌های وضعیت) و فونت `Tahoma`.
+- سربرگ گرادیانی (`UI/HeaderBand.cs`) شامل عنوان، زیرعنوان، نشان نسخه و «قرص وضعیت» رنگی.
+- کارت‌های گوشه‌گرد (`UI/CardPanel.cs`) با سایه ملایم، خط تأکید رنگی، عنوان راست‌چین و راهنمای کوچک.
+- دکمه‌های سفارشی (`UI/AccentButton.cs`) با انواع Primary/Secondary/Danger/Success/Ghost و آیکون برداری (`UI/VectorIcons.cs`).
+- جدول با سرستون خوانا، ردیف‌های یک‌درمیان و رنگ‌بندی سه‌سطحی (عادی/هشدار/بحرانی).
+- هیچ فایل تصویری و هیچ کتابخانه گرافیکی جانبی استفاده نشده است.
+
+### ب) پایداری داده
+
+- اجرای تک‌نسخه‌ای با `Mutex` (پیام فارسی در صورت اجرای هم‌زمان).
+- **نسخه‌های پشتیبان** (دکمه «نسخه‌های پشتیبان» یا منوی «فایل») با فهرست تاریخ شمسی، تعداد رکورد و حجم، و بازگردانی امن.
+- **سلامت داده** (دکمه «سلامت داده» یا منوی «فایل»): حذف رکوردهای نامعتبر و بازسازی فایل.
+- گزارش‌های قدیمی‌تر از ۳۰ روز در شروع برنامه پاک می‌شوند.
+
+### ج) تجربه جدول
+
+| کار | راه انجام |
+|---|---|
+| مرتب‌سازی | کلیک روی سرستون (کلیک دوباره جهت را برمی‌گرداند) |
+| فیلتر خودکار | تایپ در کادر جست‌وجو (اعمال پس از ۳۵۰ میلی‌ثانیه) |
+| حذف گروهی | انتخاب چند ردیف با `Ctrl` و سپس `Delete` |
+| بازگردانی حذف | دکمه «بازگردانی حذف» یا `Ctrl+Z` |
+| پرش به جست‌وجو | `Ctrl+F` |
+| ویرایش سریع | `F2` یا دوبار کلیک |
+
+- اندازه و وضعیت پنجره و تنظیمات نمودار در `%LOCALAPPDATA%\IndustrialSensorMonitor\settings.json` ذخیره می‌شود.
+
+### د) تحلیل
+
+- بازه زمانی نمودار: ۲۴ ساعت، ۷ روز، ۳۰ روز و همه رکوردها.
+- نمایش هم‌زمان تا چهار سنسور در یک نمودار (با فیلتر «همه سنسورها» یا انتخاب چند ردیف).
+- ذخیره تصویر نمودار به‌صورت PNG.
+- **گزارش هشدارها**: فهرست رکوردهای هشدار/بحرانی با توضیح فارسی و خروجی CSV.
+
+### ه) مهندسی و CI
+
+- `Directory.Packages.props` (مدیریت متمرکز نسخه پکیج‌ها) و `global.json` (قفل نسخه SDK).
+- بررسی خودکار یکسان بودن شماره نسخه در `csproj`، `Setup.iss`، `CHANGELOG.md` و Tag.
+- یادداشت‌های GitHub Release به‌صورت خودکار از `CHANGELOG.md` ساخته می‌شود.
+- تست روی Pull Request + پوشش کد با `coverlet.collector` (خروجی در Artifact `coverage`).
+- `.gitattributes` برای یکسان‌سازی پایان خط.
+
+---
+
 ## پیوست: گزارش خطاها و رفع اشکال
 
 **محل فایل گزارش:** `%LOCALAPPDATA%\IndustrialSensorMonitor\Logs\app-YYYYMMDD.log`
@@ -737,4 +814,4 @@ git push origin v1.2.0
 
 ---
 
-**پایان مستندات — Industrial Sensor Monitor 1.2.0**
+**پایان مستندات — Industrial Sensor Monitor 1.3.0**

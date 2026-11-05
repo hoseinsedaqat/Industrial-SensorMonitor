@@ -16,6 +16,13 @@
     <!-- هشدارهای کامپایلر نمایش داده شوند اما مانع ساخت نشوند -->
     <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
     <EnableNETAnalyzers>true</EnableNETAnalyzers>
+
+    <!--
+      WFO1000: تحلیلگر WinForms برای کنترل‌های سفارشی، صفت‌های سریال‌سازی طراح (Designer) را مطالبه می‌کند.
+      در این پروژه رابط کاربری کاملاً در کد ساخته می‌شود و از طراح بصری Visual Studio استفاده نمی‌کنیم؛
+      بنابراین این قاعده برای ما کاربردی ندارد.
+    -->
+    <NoWarn>$(NoWarn);WFO1000</NoWarn>
     <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
 
     <!-- اطلاعات مشترک اسمبلی -->

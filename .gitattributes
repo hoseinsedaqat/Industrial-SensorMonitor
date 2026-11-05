@@ -1,0 +1,41 @@
+# Normalize line endings at checkout so Windows tooling (Inno Setup, PowerShell, Visual Studio)
+# and Linux/macOS tooling see consistent files.
+
+* text=auto
+
+# ---------- سورس کد ----------
+*.cs      text diff=csharp
+*.csproj  text
+*.props   text
+*.targets text
+*.sln     text eol=crlf
+*.json    text
+*.yml     text
+*.yaml    text
+*.md      text
+*.xml     text
+*.config  text
+*.iss     text eol=crlf
+*.ps1     text eol=crlf
+*.cmd     text eol=crlf
+*.bat     text eol=crlf
+*.sh      text eol=lf
+
+# ---------- فایل‌های دودویی ----------
+*.ico   binary
+*.png   binary
+*.jpg   binary
+*.jpeg  binary
+*.gif   binary
+*.zip   binary
+*.exe   binary
+*.dll   binary
+*.pdb   binary
+*.trx   binary
+
+# ---------- فایل‌های خروجی و موقت ----------
+*.tmp     -text
+*.log     -text
+TestResults/  -text
+dist/         -text
+publish/      -text

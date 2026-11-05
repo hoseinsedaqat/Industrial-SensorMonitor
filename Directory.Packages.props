@@ -1,0 +1,24 @@
+<Project>
+
+  <!--
+    مدیریت متمرکز نسخه پکیج‌های NuGet (Central Package Management).
+    همه نسخه‌ها فقط در همین فایل تعیین می‌شوند و در فایل‌های csproj
+    فقط نام پکیج نوشته می‌شود؛ به‌این‌ترتیب نسخه‌ها در کل مخزن یکدست می‌مانند.
+    برای افزودن پکیج جدید: یک PackageVersion در همین فایل و یک PackageReference در csproj.
+  -->
+  <PropertyGroup>
+    <ManagePackageVersionsCentrally>true</ManagePackageVersionsCentrally>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- وابستگی‌های برنامه -->
+    <PackageVersion Include="Microsoft.Extensions.Configuration" Version="10.0.14" />
+    <PackageVersion Include="Microsoft.Extensions.Configuration.Json" Version="10.0.14" />
+
+    <!-- وابستگی‌های تست (نسخه ثابت؛ به‌روزرسانی فقط با PR جداگانه) -->
+    <PackageVersion Include="Microsoft.NET.Test.Sdk" Version="18.11.0" />
+    <PackageVersion Include="xunit" Version="2.9.3" />
+    <PackageVersion Include="xunit.runner.visualstudio" Version="4.0.1" />
+  </ItemGroup>
+
+</Project>

@@ -3,6 +3,7 @@ using System.Text.Encodings.Web;
 using System.Text.Json;
 using IndustrialSensorMonitor.Diagnostics;
 using IndustrialSensorMonitor.Models;
+using IndustrialSensorMonitor.Validation;
 
 namespace IndustrialSensorMonitor.Storage;
 
@@ -285,6 +286,190 @@ public sealed class SensorDataStore
         }
     }
 
+    /// <summary>فهرست نسخه‌های پشتیبان موجود (جدیدترین در ابتدا).</summary>
+    public IReadOnlyList<BackupFileInfo> GetBackupFiles()
+    {
+        var list = new List<BackupFileInfo>();
+
+        try
+        {
+            if (!Directory.Exists(BackupDirectory))
+            {
+                return list;
+            }
+
+            var pattern = $"{Path.GetFileNameWithoutExtension(DataFilePath)}-*.json";
+
+            foreach (var path in Directory.GetFiles(BackupDirectory, pattern))
+            {
+                var info = new FileInfo(path);
+                list.Add(new BackupFileInfo(path, info.LastWriteTime, info.Length, TryCountRecords(path)));
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            AppLog.Error("خواندن فهرست نسخه‌های پشتیبان ناموفق بود.", ex);
+        }
+
+        return list
+            .OrderByDescending(backup => backup.CreatedAt)
+            .ThenByDescending(backup => backup.FilePath, StringComparer.Ordinal)
+            .ToList();
+    }
+
+    /// <summary>
+    /// بازگردانی یکی از نسخه‌های پشتیبان به‌جای فایل داده فعلی.
+    /// پیش از جایگزینی، از وضعیت فعلی هم یک نسخه پشتیبان گرفته می‌شود.
+    /// </summary>
+    public StorageResult RestoreBackup(string backupPath)
+    {
+        if (string.IsNullOrWhiteSpace(backupPath) || !File.Exists(backupPath))
+        {
+            return StorageResult.Failed("فایل پشتیبان انتخاب‌شده پیدا نشد.");
+        }
+
+        SensorDataFile restored;
+
+        try
+        {
+            restored = ReadFrom(backupPath);
+        }
+        catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
+        {
+            AppLog.Error("خواندن فایل پشتیبان ناموفق بود.", ex);
+            return StorageResult.Failed("محتوای فایل پشتیبان معتبر نیست و بازگردانی انجام نشد.", ex);
+        }
+
+        lock (_syncRoot)
+        {
+            try
+            {
+                Directory.CreateDirectory(BackupDirectory);
+
+                if (File.Exists(DataFilePath))
+                {
+                    var safetyCopy = Path.Combine(
+                        BackupDirectory,
+                        $"before-restore-{DateTime.Now:yyyyMMdd-HHmmss-fff}.json");
+
+                    File.Copy(DataFilePath, safetyCopy, overwrite: true);
+                }
+
+                restored.Version = FileFormatVersion;
+                WriteFile(restored);
+
+                AppLog.Info($"نسخه پشتیبان «{Path.GetFileName(backupPath)}» بازگردانی شد.");
+                return StorageResult.Succeeded($"نسخه پشتیبان با {restored.Sensors.Count} رکورد بازگردانی شد.");
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+            {
+                AppLog.Error("بازگردانی نسخه پشتیبان ناموفق بود.", ex);
+                return StorageResult.Failed("بازگردانی نسخه پشتیبان ممکن نشد. دسترسی نوشتن به فایل داده را بررسی کنید.", ex);
+            }
+        }
+    }
+
+    /// <summary>
+    /// بررسی سلامت محتوای فایل داده: رکوردهای نامعتبر (نام خالی، واحد خالی، مقدار خارج از بازه مجاز،
+    /// تاریخ ثبت نامعتبر) حذف می‌شوند. در صورت نیاز، فایل با نسخه پشتیبان بازنویسی می‌شود.
+    /// </summary>
+    public StorageRepairReport RepairStorage()
+    {
+        lock (_syncRoot)
+        {
+            try
+            {
+                if (!File.Exists(DataFilePath) || IsFileEmpty())
+                {
+                    var created = CreateSeedFile();
+                    return new StorageRepairReport(true, 0, created.Sensors.Count, "فایل داده وجود نداشت و فایل تازه ساخته شد.");
+                }
+
+                SensorDataFile file;
+
+                try
+                {
+                    file = ReadFrom(DataFilePath);
+                }
+                catch (JsonException ex)
+                {
+                    AppLog.Error("ساختار کلی فایل داده برای بازسازی قابل خواندن نبود.", ex);
+                    return new StorageRepairReport(
+                        false,
+                        0,
+                        0,
+                        "ساختار کلی فایل داده قابل خواندن نیست؛ از «بازگردانی نسخه پشتیبان» استفاده کنید.");
+                }
+
+                var total = file.Sensors.Count;
+                var valid = file.Sensors.Where(IsValidRecord).ToList();
+                var removed = total - valid.Count;
+
+                if (removed == 0)
+                {
+                    return new StorageRepairReport(true, 0, total, $"همه {total} رکورد سالم است.");
+                }
+
+                file.Sensors = valid;
+                var maxId = valid.Count == 0 ? 0 : valid.Max(record => record.Id);
+
+                if (file.NextId <= maxId)
+                {
+                    file.NextId = maxId + 1;
+                }
+
+                WriteFile(file);
+                AppLog.Info($"{removed} رکورد نامعتبر از فایل داده حذف شد.");
+
+                return new StorageRepairReport(
+                    true,
+                    removed,
+                    valid.Count,
+                    $"{removed} رکورد نامعتبر حذف شد و {valid.Count} رکورد سالم باقی ماند.");
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+            {
+                AppLog.Error("بررسی سلامت فایل داده ناموفق بود.", ex);
+                return new StorageRepairReport(false, 0, 0, "بررسی سلامت فایل داده ممکن نشد. دسترسی به فایل را بررسی کنید.");
+            }
+        }
+    }
+
+    /// <summary>حذف گروهی چند رکورد با یک بار نوشتن فایل.</summary>
+    public StorageResult<int> DeleteSensorDataBatch(IEnumerable<int> ids)
+    {
+        ArgumentNullException.ThrowIfNull(ids);
+
+        var idSet = ids.ToHashSet();
+
+        if (idSet.Count == 0)
+        {
+            return StorageResult<int>.Failed("رکوردی برای حذف انتخاب نشده است.");
+        }
+
+        var removed = 0;
+
+        lock (_syncRoot)
+        {
+            var result = ExecuteWrite(file =>
+            {
+                removed = file.Sensors.RemoveAll(record => idSet.Contains(record.Id));
+
+                if (removed == 0)
+                {
+                    return StorageResult.Failed("رکوردی با شناسه‌های انتخاب‌شده پیدا نشد.");
+                }
+
+                AppLog.Info($"{removed} رکورد به‌صورت گروهی حذف شد.");
+                return StorageResult.Succeeded($"{removed} رکورد حذف شد.");
+            });
+
+            return result.Success
+                ? StorageResult<int>.Succeeded(removed, result.Message)
+                : StorageResult<int>.Failed(result.Message, result.Error);
+        }
+    }
+
     // ---------------------------------------------------------------------
     // متدهای داخلی خواندن و نوشتن فایل
     // ---------------------------------------------------------------------
@@ -370,13 +555,15 @@ public sealed class SensorDataStore
         return !info.Exists || info.Length == 0;
     }
 
-    private SensorDataFile ReadFile()
+    private SensorDataFile ReadFile() => ReadFrom(DataFilePath);
+
+    private static SensorDataFile ReadFrom(string path)
     {
-        var json = File.ReadAllText(DataFilePath, Encoding.UTF8);
+        var json = File.ReadAllText(path, Encoding.UTF8);
 
         if (string.IsNullOrWhiteSpace(json))
         {
-            return CreateSeedFile();
+            return new SensorDataFile();
         }
 
         var file = JsonSerializer.Deserialize<SensorDataFile>(json, SerializerOptions) ?? new SensorDataFile();
@@ -500,6 +687,31 @@ public sealed class SensorDataStore
         return backupPath;
     }
 
+    private static int? TryCountRecords(string path)
+    {
+        try
+        {
+            var file = JsonSerializer.Deserialize<SensorDataFile>(File.ReadAllText(path, Encoding.UTF8), SerializerOptions);
+            return file?.Sensors?.Count;
+        }
+        catch (Exception ex) when (ex is IOException or JsonException or UnauthorizedAccessException)
+        {
+            return null;
+        }
+    }
+
+    private static bool IsValidRecord(SensorRecord record)
+    {
+        return record.Id > 0 &&
+               !string.IsNullOrWhiteSpace(record.SensorName) &&
+               record.SensorName.Length <= SensorInputValidator.MaxSensorNameLength &&
+               !string.IsNullOrWhiteSpace(record.Unit) &&
+               record.Unit.Length <= SensorInputValidator.MaxUnitLength &&
+               record.Value >= SensorInputValidator.MinimumValue &&
+               record.Value <= SensorInputValidator.MaximumValue &&
+               record.RecordDate != default;
+    }
+
     private static SensorData ToModel(SensorRecord record) => new()
     {
         Id = record.Id,
@@ -509,3 +721,21 @@ public sealed class SensorDataStore
         RecordDate = record.RecordDate
     };
 }
+
+/// <summary>اطلاعات یک نسخه پشتیبان برای نمایش در فهرست بازگردانی.</summary>
+/// <param name="FilePath">مسیر کامل فایل پشتیبان.</param>
+/// <param name="CreatedAt">زمان آخرین تغییر فایل (زمان تهیه نسخه).</param>
+/// <param name="SizeInBytes">حجم فایل.</param>
+/// <param name="RecordCount">تعداد رکوردهای قابل خواندن (در صورت خرابی، null).</param>
+public sealed record BackupFileInfo(string FilePath, DateTime CreatedAt, long SizeInBytes, int? RecordCount)
+{
+    /// <summary>نام فایل برای نمایش.</summary>
+    public string FileName => Path.GetFileName(FilePath);
+}
+
+/// <summary>نتیجه بررسی سلامت فایل داده.</summary>
+/// <param name="Success">آیا بررسی (و در صورت نیاز بازسازی) با موفقیت انجام شد؟</param>
+/// <param name="RemovedCount">تعداد رکوردهای نامعتبر حذف‌شده.</param>
+/// <param name="KeptCount">تعداد رکوردهای سالم باقی‌مانده.</param>
+/// <param name="Message">پیام فارسی برای کاربر.</param>
+public sealed record StorageRepairReport(bool Success, int RemovedCount, int KeptCount, string Message);
