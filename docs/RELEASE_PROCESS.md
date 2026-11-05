@@ -9,17 +9,17 @@
 
 | محل | نمونه |
 |---|---|
-| `src/IndustrialSensorMonitor/IndustrialSensorMonitor.csproj` (`<Version>`, `AssemblyVersion`, `FileVersion`) | `1.3.0` / `1.3.0.0` |
-| `installer/Setup.iss` (`#define MyAppVersion`) | `1.3.0` |
-| بالاترین بخش `CHANGELOG.md` | `## [1.3.0] - 2026-11-05` |
-| تگ Git (هنگام انتشار) | `v1.3.0` |
+| `src/IndustrialSensorMonitor/IndustrialSensorMonitor.csproj` (`<Version>`, `AssemblyVersion`, `FileVersion`) | `1.3.1` / `1.3.1.0` |
+| `installer/Setup.iss` (`#define MyAppVersion`) | `1.3.1` |
+| بالاترین بخش `CHANGELOG.md` | `## [1.3.1] - 2026-11-05` |
+| تگ Git (هنگام انتشار) | `v1.3.1` |
 
 ## ۲. نوشتن تغییرات در CHANGELOG
 
 یک بخش جدید در بالای `CHANGELOG.md` اضافه کنید. متن همین بخش **بدون تغییر** در GitHub Release استفاده می‌شود.
 
 ```markdown
-## [1.3.0] - 2026-11-05
+## [1.3.1] - 2026-11-05
 
 ### افزوده شد
 - ...
@@ -50,8 +50,8 @@ dotnet test tests\IndustrialSensorMonitor.Tests\IndustrialSensorMonitor.Tests.cs
 ```bash
 git checkout test
 git pull origin test
-git tag v1.3.0
-git push origin v1.3.0
+git tag v1.3.1
+git push origin v1.3.1
 ```
 
 با Push تگ:
@@ -59,7 +59,7 @@ git push origin v1.3.0
 1. Workflow «Build and Release» اجرا می‌شود.
 2. شماره نسخه از تگ خوانده و با `csproj` مقایسه می‌شود.
 3. خروجی‌ها ساخته می‌شوند: `Setup-x64.exe`، `IndustrialSensorMonitor.exe` و `Portable-x64.zip`.
-4. یادداشت‌های انتشار از بخش `## [1.3.0]` در `CHANGELOG.md` ساخته و Release منتشر می‌شود.
+4. یادداشت‌های انتشار از بخش `## [1.3.1]` در `CHANGELOG.md` ساخته و Release منتشر می‌شود.
 
 ## ۶. بررسی پس از انتشار
 

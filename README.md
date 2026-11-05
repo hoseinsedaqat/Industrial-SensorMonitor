@@ -8,7 +8,7 @@
 [![Latest Release](https://img.shields.io/github/v/release/hoseinsedaqat/Industrial-SensorMonitor?label=release)](https://github.com/hoseinsedaqat/Industrial-SensorMonitor/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
-> **نسخه فعلی:** `1.3.0`
+> **نسخه فعلی:** `1.3.1`
 > **پلتفرم:** Windows 10 / 11 — 64 bit
 > **فریم‌ورک:** .NET 10 (`net10.0-windows`)
 > **بدون نیاز به SQL Server، بدون سرور، بدون نصب دیتابیس**
@@ -630,7 +630,7 @@ IndustrialSensorMonitor/
 
 | مورد | مقدار |
 |---|---|
-| نسخه | `1.3.0` |
+| نسخه | `1.3.1` |
 | الگوی نسخه‌بندی | `Major.Minor.Patch` |
 | محل تعریف نسخه | `src/IndustrialSensorMonitor/IndustrialSensorMonitor.csproj`، `installer/Setup.iss` و `CHANGELOG.md` (با بررسی خودکار در CI) |
 
@@ -759,14 +759,14 @@ git push origin v1.3.0
 
 ---
 
-## ۲۴. قابلیت‌های نسخه ۱٫۳٫۰
+## ۲۴. قابلیت‌های نسخه ۱٫۳٫۱
 
 ### الف) بازطراحی ظاهر
 
 - تم روشن با پالت متمرکز در `UI/AppTheme.cs` (پس‌زمینه، سطح، حاشیه، رنگ تأکیدی، رنگ‌های وضعیت) و فونت `Tahoma`.
 - سربرگ گرادیانی (`UI/HeaderBand.cs`) شامل عنوان، زیرعنوان، نشان نسخه و «قرص وضعیت» رنگی.
 - کارت‌های گوشه‌گرد (`UI/CardPanel.cs`) با سایه ملایم، خط تأکید رنگی، عنوان راست‌چین و راهنمای کوچک.
-- دکمه‌های سفارشی (`UI/AccentButton.cs`) با انواع Primary/Secondary/Danger/Success/Ghost و آیکون برداری (`UI/VectorIcons.cs`).
+- دکمه‌های **استاندارد Windows Forms** با ظاهر یکدست (`UI/ButtonStyler.cs`: Primary/Secondary/Danger/Ghost). رنگ دکمه در Hover و کلیک تغییر نمی‌کند و متن هیچ دکمه‌ای بریده نمی‌شود (دکمه‌های سفارشی نسخه ۱٫۳٫۰ که باعث بریدگی متن و خط‌های اضافه می‌شدند، حذف شده‌اند).
 - جدول با سرستون خوانا، ردیف‌های یک‌درمیان و رنگ‌بندی سه‌سطحی (عادی/هشدار/بحرانی).
 - هیچ فایل تصویری و هیچ کتابخانه گرافیکی جانبی استفاده نشده است.
 
@@ -832,4 +832,4 @@ git push origin v1.3.0
 
 ---
 
-**پایان مستندات — Industrial Sensor Monitor 1.3.0**
+**پایان مستندات — Industrial Sensor Monitor 1.3.1**

@@ -23,9 +23,9 @@
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
 
     <!-- اطلاعات نسخه برنامه (هماهنگ با فایل نصب و GitHub Release) -->
-    <Version>1.3.0</Version>
-    <AssemblyVersion>1.3.0.0</AssemblyVersion>
-    <FileVersion>1.3.0.0</FileVersion>
+    <Version>1.3.1</Version>
+    <AssemblyVersion>1.3.1.0</AssemblyVersion>
+    <FileVersion>1.3.1.0</FileVersion>
     <Product>Industrial Sensor Monitor</Product>
     <AssemblyTitle>Industrial Sensor Monitor</AssemblyTitle>
     <Description>سامانه ثبت و مدیریت اطلاعات سنسورهای صنعتی</Description>

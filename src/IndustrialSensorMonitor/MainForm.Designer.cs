@@ -9,6 +9,8 @@ namespace IndustrialSensorMonitor;
 /// بخش طراحی فرم اصلی (طراحی دستی، بدون Designer استاندارد).
 /// ساختار کلی: سربرگ گرادیانی + کارت ثبت اطلاعات + کارت فیلتر + کارت اطلاعات + کارت نمودار.
 /// نام کنترل‌ها ثابت نگه داشته شده است تا منطق فرم (<see cref="MainForm"/>) بدون تغییر کار کند.
+/// دکمه‌ها استاندارد Windows Forms هستند و ظاهر آن‌ها فقط با رنگ و حاشیه تنظیم می‌شود
+/// (بدون رسم سفارشی، بدون تغییر رنگ در Hover و بدون آیکون) تا متن هرگز بریده نشود.
 /// </summary>
 public partial class MainForm
 {
@@ -25,12 +27,14 @@ public partial class MainForm
     private System.Windows.Forms.ToolStripMenuItem miDataHealth = null!;
     private System.Windows.Forms.ToolStripMenuItem miOpenDataFolder = null!;
     private System.Windows.Forms.ToolStripSeparator miSeparatorFile = null!;
+    private System.Windows.Forms.ToolStripSeparator miSeparatorExit = null!;
     private System.Windows.Forms.ToolStripMenuItem miExit = null!;
     private System.Windows.Forms.ToolStripMenuItem miRecords = null!;
     private System.Windows.Forms.ToolStripMenuItem miEditRecord = null!;
     private System.Windows.Forms.ToolStripMenuItem miDeleteRecord = null!;
     private System.Windows.Forms.ToolStripMenuItem miUndoDelete = null!;
     private System.Windows.Forms.ToolStripMenuItem miAlarmReport = null!;
+    private System.Windows.Forms.ToolStripMenuItem miToggleChart = null!;
     private System.Windows.Forms.ToolStripSeparator miSeparatorRecords = null!;
     private System.Windows.Forms.ToolStripMenuItem miRefresh = null!;
     private System.Windows.Forms.ToolStripMenuItem miMonitoring = null!;
@@ -49,6 +53,7 @@ public partial class MainForm
 
     private IndustrialSensorMonitor.UI.CardPanel grpInput = null!;
     private System.Windows.Forms.TableLayoutPanel tlpInput = null!;
+    private System.Windows.Forms.FlowLayoutPanel flpInputRow = null!;
     private System.Windows.Forms.Label lblSensorName = null!;
     private System.Windows.Forms.ComboBox cmbSensorName = null!;
     private System.Windows.Forms.Label lblSensorValue = null!;
@@ -56,11 +61,11 @@ public partial class MainForm
     private System.Windows.Forms.Label lblUnit = null!;
     private System.Windows.Forms.TextBox txtUnit = null!;
     private System.Windows.Forms.FlowLayoutPanel flpButtons = null!;
-    private IndustrialSensorMonitor.UI.AccentButton btnSave = null!;
-    private IndustrialSensorMonitor.UI.AccentButton btnClear = null!;
-    private IndustrialSensorMonitor.UI.AccentButton btnRefresh = null!;
-    private IndustrialSensorMonitor.UI.AccentButton btnOpenDataFolder = null!;
-    private IndustrialSensorMonitor.UI.AccentButton btnAbout = null!;
+    private System.Windows.Forms.Button btnSave = null!;
+    private System.Windows.Forms.Button btnClear = null!;
+    private System.Windows.Forms.Button btnRefresh = null!;
+    private System.Windows.Forms.Button btnOpenDataFolder = null!;
+    private System.Windows.Forms.Button btnAbout = null!;
     private System.Windows.Forms.ToolTip tipMain = null!;
 
     private IndustrialSensorMonitor.UI.CardPanel grpFilter = null!;
@@ -79,20 +84,21 @@ public partial class MainForm
     private System.Windows.Forms.TextBox txtFilterValueFrom = null!;
     private System.Windows.Forms.Label lblFilterValueTo = null!;
     private System.Windows.Forms.TextBox txtFilterValueTo = null!;
-    private IndustrialSensorMonitor.UI.AccentButton btnApplyFilter = null!;
-    private IndustrialSensorMonitor.UI.AccentButton btnResetFilter = null!;
+    private System.Windows.Forms.Button btnApplyFilter = null!;
+    private System.Windows.Forms.Button btnResetFilter = null!;
+    private System.Windows.Forms.CheckBox chkShowChart = null!;
     private System.Windows.Forms.Label lblFilterResult = null!;
 
     private IndustrialSensorMonitor.UI.CardPanel grpRecords = null!;
     private System.Windows.Forms.TableLayoutPanel tlpRecords = null!;
     private System.Windows.Forms.FlowLayoutPanel flpRecordTools = null!;
-    private IndustrialSensorMonitor.UI.AccentButton btnEditRecord = null!;
-    private IndustrialSensorMonitor.UI.AccentButton btnDeleteRecord = null!;
-    private IndustrialSensorMonitor.UI.AccentButton btnUndoDelete = null!;
-    private IndustrialSensorMonitor.UI.AccentButton btnExportCsv = null!;
-    private IndustrialSensorMonitor.UI.AccentButton btnImportCsv = null!;
-    private IndustrialSensorMonitor.UI.AccentButton btnRestoreBackup = null!;
-    private IndustrialSensorMonitor.UI.AccentButton btnDataHealth = null!;
+    private System.Windows.Forms.Button btnEditRecord = null!;
+    private System.Windows.Forms.Button btnDeleteRecord = null!;
+    private System.Windows.Forms.Button btnUndoDelete = null!;
+    private System.Windows.Forms.Button btnExportCsv = null!;
+    private System.Windows.Forms.Button btnImportCsv = null!;
+    private System.Windows.Forms.Button btnRestoreBackup = null!;
+    private System.Windows.Forms.Button btnDataHealth = null!;
     private System.Windows.Forms.Label lblRecordsHint = null!;
     private System.Windows.Forms.DataGridView dgvSensorData = null!;
     private System.Windows.Forms.DataGridViewTextBoxColumn colId = null!;
@@ -105,9 +111,8 @@ public partial class MainForm
     private System.Windows.Forms.TableLayoutPanel tlpChart = null!;
     private System.Windows.Forms.FlowLayoutPanel flpChartTools = null!;
     private System.Windows.Forms.ComboBox cmbChartRange = null!;
-    private System.Windows.Forms.CheckBox chkShowChart = null!;
-    private IndustrialSensorMonitor.UI.AccentButton btnChartPng = null!;
-    private IndustrialSensorMonitor.UI.AccentButton btnAlarmReport = null!;
+    private System.Windows.Forms.Button btnChartPng = null!;
+    private System.Windows.Forms.Button btnAlarmReport = null!;
     private System.Windows.Forms.Label lblChartStats = null!;
     private IndustrialSensorMonitor.Charts.SensorChartPanel pnlChart = null!;
 
@@ -131,12 +136,14 @@ public partial class MainForm
         miDataHealth = new System.Windows.Forms.ToolStripMenuItem();
         miOpenDataFolder = new System.Windows.Forms.ToolStripMenuItem();
         miSeparatorFile = new System.Windows.Forms.ToolStripSeparator();
+        miSeparatorExit = new System.Windows.Forms.ToolStripSeparator();
         miExit = new System.Windows.Forms.ToolStripMenuItem();
         miRecords = new System.Windows.Forms.ToolStripMenuItem();
         miEditRecord = new System.Windows.Forms.ToolStripMenuItem();
         miDeleteRecord = new System.Windows.Forms.ToolStripMenuItem();
         miUndoDelete = new System.Windows.Forms.ToolStripMenuItem();
         miAlarmReport = new System.Windows.Forms.ToolStripMenuItem();
+        miToggleChart = new System.Windows.Forms.ToolStripMenuItem();
         miSeparatorRecords = new System.Windows.Forms.ToolStripSeparator();
         miRefresh = new System.Windows.Forms.ToolStripMenuItem();
         miMonitoring = new System.Windows.Forms.ToolStripMenuItem();
@@ -155,6 +162,7 @@ public partial class MainForm
 
         grpInput = new IndustrialSensorMonitor.UI.CardPanel();
         tlpInput = new System.Windows.Forms.TableLayoutPanel();
+        flpInputRow = new System.Windows.Forms.FlowLayoutPanel();
         lblSensorName = new System.Windows.Forms.Label();
         cmbSensorName = new System.Windows.Forms.ComboBox();
         lblSensorValue = new System.Windows.Forms.Label();
@@ -162,11 +170,11 @@ public partial class MainForm
         lblUnit = new System.Windows.Forms.Label();
         txtUnit = new System.Windows.Forms.TextBox();
         flpButtons = new System.Windows.Forms.FlowLayoutPanel();
-        btnSave = new IndustrialSensorMonitor.UI.AccentButton();
-        btnClear = new IndustrialSensorMonitor.UI.AccentButton();
-        btnRefresh = new IndustrialSensorMonitor.UI.AccentButton();
-        btnOpenDataFolder = new IndustrialSensorMonitor.UI.AccentButton();
-        btnAbout = new IndustrialSensorMonitor.UI.AccentButton();
+        btnSave = new System.Windows.Forms.Button();
+        btnClear = new System.Windows.Forms.Button();
+        btnRefresh = new System.Windows.Forms.Button();
+        btnOpenDataFolder = new System.Windows.Forms.Button();
+        btnAbout = new System.Windows.Forms.Button();
 
         grpFilter = new IndustrialSensorMonitor.UI.CardPanel();
         tlpFilter = new System.Windows.Forms.TableLayoutPanel();
@@ -184,20 +192,21 @@ public partial class MainForm
         txtFilterValueFrom = new System.Windows.Forms.TextBox();
         lblFilterValueTo = new System.Windows.Forms.Label();
         txtFilterValueTo = new System.Windows.Forms.TextBox();
-        btnApplyFilter = new IndustrialSensorMonitor.UI.AccentButton();
-        btnResetFilter = new IndustrialSensorMonitor.UI.AccentButton();
+        btnApplyFilter = new System.Windows.Forms.Button();
+        btnResetFilter = new System.Windows.Forms.Button();
+        chkShowChart = new System.Windows.Forms.CheckBox();
         lblFilterResult = new System.Windows.Forms.Label();
 
         grpRecords = new IndustrialSensorMonitor.UI.CardPanel();
         tlpRecords = new System.Windows.Forms.TableLayoutPanel();
         flpRecordTools = new System.Windows.Forms.FlowLayoutPanel();
-        btnEditRecord = new IndustrialSensorMonitor.UI.AccentButton();
-        btnDeleteRecord = new IndustrialSensorMonitor.UI.AccentButton();
-        btnUndoDelete = new IndustrialSensorMonitor.UI.AccentButton();
-        btnExportCsv = new IndustrialSensorMonitor.UI.AccentButton();
-        btnImportCsv = new IndustrialSensorMonitor.UI.AccentButton();
-        btnRestoreBackup = new IndustrialSensorMonitor.UI.AccentButton();
-        btnDataHealth = new IndustrialSensorMonitor.UI.AccentButton();
+        btnEditRecord = new System.Windows.Forms.Button();
+        btnDeleteRecord = new System.Windows.Forms.Button();
+        btnUndoDelete = new System.Windows.Forms.Button();
+        btnExportCsv = new System.Windows.Forms.Button();
+        btnImportCsv = new System.Windows.Forms.Button();
+        btnRestoreBackup = new System.Windows.Forms.Button();
+        btnDataHealth = new System.Windows.Forms.Button();
         lblRecordsHint = new System.Windows.Forms.Label();
         dgvSensorData = new System.Windows.Forms.DataGridView();
         colId = new System.Windows.Forms.DataGridViewTextBoxColumn();
@@ -210,9 +219,8 @@ public partial class MainForm
         tlpChart = new System.Windows.Forms.TableLayoutPanel();
         flpChartTools = new System.Windows.Forms.FlowLayoutPanel();
         cmbChartRange = new System.Windows.Forms.ComboBox();
-        chkShowChart = new System.Windows.Forms.CheckBox();
-        btnChartPng = new IndustrialSensorMonitor.UI.AccentButton();
-        btnAlarmReport = new IndustrialSensorMonitor.UI.AccentButton();
+        btnChartPng = new System.Windows.Forms.Button();
+        btnAlarmReport = new System.Windows.Forms.Button();
         lblChartStats = new System.Windows.Forms.Label();
         pnlChart = new IndustrialSensorMonitor.Charts.SensorChartPanel();
 
@@ -267,7 +275,7 @@ public partial class MainForm
             miRestoreBackup,
             miDataHealth,
             miOpenDataFolder,
-            miSeparatorRecords,
+            miSeparatorExit,
             miExit
         });
         miFile.Text = "فایل";
@@ -288,6 +296,12 @@ public partial class MainForm
         miAlarmReport.Text = "گزارش هشدارها...";
         miAlarmReport.Name = "miAlarmReport";
 
+        miToggleChart.Text = "نمایش/پنهان نمودار";
+        miToggleChart.Name = "miToggleChart";
+        miToggleChart.CheckOnClick = true;
+        miToggleChart.Checked = true;
+        miToggleChart.ShortcutKeys = System.Windows.Forms.Keys.Control | System.Windows.Forms.Keys.G;
+
         miRefresh.Text = "بارگذاری مجدد اطلاعات";
         miRefresh.Name = "miRefresh";
         miRefresh.ShortcutKeys = System.Windows.Forms.Keys.F5;
@@ -299,6 +313,7 @@ public partial class MainForm
             miUndoDelete,
             miSeparatorRecords,
             miAlarmReport,
+            miToggleChart,
             miRefresh
         });
         miRecords.Text = "رکوردها";
@@ -365,7 +380,6 @@ public partial class MainForm
 
         lblStatusStats.BorderSides = System.Windows.Forms.ToolStripStatusLabelBorderSides.Left;
         lblStatusStats.Name = "lblStatusStats";
-        lblStatusStats.Spring = false;
         lblStatusStats.TextAlign = System.Drawing.ContentAlignment.MiddleRight;
         lblStatusStats.Text = string.Empty;
         lblStatusStats.Font = IndustrialSensorMonitor.UI.AppTheme.SmallFont;
@@ -380,7 +394,7 @@ public partial class MainForm
 
         lblStatusVersion.BorderSides = System.Windows.Forms.ToolStripStatusLabelBorderSides.Left;
         lblStatusVersion.Name = "lblStatusVersion";
-        lblStatusVersion.Text = "نسخه 1.3.0";
+        lblStatusVersion.Text = "نسخه 1.3.1";
         lblStatusVersion.Font = IndustrialSensorMonitor.UI.AppTheme.SmallFont;
         lblStatusVersion.ForeColor = IndustrialSensorMonitor.UI.AppTheme.TextSecondary;
 
@@ -401,27 +415,24 @@ public partial class MainForm
         ssMain.SizingGrip = false;
 
         // ---------------------------------------------------------------
-        // کارت ثبت اطلاعات سنسور
+        // کارت ثبت اطلاعات سنسور (یک ردیف فیلد + یک ردیف دکمه)
         // ---------------------------------------------------------------
         lblSensorName.AutoSize = true;
-        lblSensorName.Anchor = System.Windows.Forms.AnchorStyles.Left;
-        lblSensorName.Margin = new System.Windows.Forms.Padding(0, 0, 10, 0);
+        lblSensorName.Margin = new System.Windows.Forms.Padding(0, 9, 8, 0);
         lblSensorName.ForeColor = IndustrialSensorMonitor.UI.AppTheme.TextSecondary;
         lblSensorName.Text = "نام سنسور:";
 
-        cmbSensorName.Anchor = System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
         cmbSensorName.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
         cmbSensorName.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
-        cmbSensorName.Margin = new System.Windows.Forms.Padding(0, 0, 24, 0);
+        cmbSensorName.Margin = new System.Windows.Forms.Padding(0, 2, 22, 0);
         cmbSensorName.Name = "cmbSensorName";
+        cmbSensorName.Size = new System.Drawing.Size(220, 26);
 
         lblSensorValue.AutoSize = true;
-        lblSensorValue.Anchor = System.Windows.Forms.AnchorStyles.Left;
-        lblSensorValue.Margin = new System.Windows.Forms.Padding(0, 0, 10, 0);
+        lblSensorValue.Margin = new System.Windows.Forms.Padding(0, 9, 8, 0);
         lblSensorValue.ForeColor = IndustrialSensorMonitor.UI.AppTheme.TextSecondary;
         lblSensorValue.Text = "مقدار سنسور:";
 
-        nudSensorValue.Anchor = System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
         nudSensorValue.BackColor = System.Drawing.Color.White;
         nudSensorValue.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
         nudSensorValue.DecimalPlaces = 4;
@@ -430,61 +441,62 @@ public partial class MainForm
         nudSensorValue.InterceptArrowKeys = true;
         nudSensorValue.Maximum = 1000000M;
         nudSensorValue.Minimum = -1000000M;
-        nudSensorValue.Margin = new System.Windows.Forms.Padding(0);
+        nudSensorValue.Margin = new System.Windows.Forms.Padding(0, 0, 22, 0);
         nudSensorValue.Name = "nudSensorValue";
         nudSensorValue.ReadOnly = false;
-        nudSensorValue.Size = new System.Drawing.Size(230, 30);
+        nudSensorValue.Size = new System.Drawing.Size(190, 30);
         // اعداد باید چپ‌به‌راست نمایش داده شوند؛ در حالت راست‌به‌چپ ناحیه تایپ خالی می‌شود
         nudSensorValue.RightToLeft = System.Windows.Forms.RightToLeft.No;
         nudSensorValue.TextAlign = System.Windows.Forms.HorizontalAlignment.Left;
         nudSensorValue.ThousandsSeparator = true;
 
         lblUnit.AutoSize = true;
-        lblUnit.Anchor = System.Windows.Forms.AnchorStyles.Left;
-        lblUnit.Margin = new System.Windows.Forms.Padding(0, 0, 10, 0);
+        lblUnit.Margin = new System.Windows.Forms.Padding(0, 9, 8, 0);
         lblUnit.ForeColor = IndustrialSensorMonitor.UI.AppTheme.TextSecondary;
         lblUnit.Text = "واحد اندازه‌گیری:";
 
-        txtUnit.Anchor = System.Windows.Forms.AnchorStyles.Left | System.Windows.Forms.AnchorStyles.Right;
         txtUnit.BorderStyle = System.Windows.Forms.BorderStyle.FixedSingle;
-        txtUnit.Margin = new System.Windows.Forms.Padding(0, 0, 24, 0);
+        txtUnit.Margin = new System.Windows.Forms.Padding(0, 2, 0, 0);
         txtUnit.MaxLength = 30;
         txtUnit.Name = "txtUnit";
+        txtUnit.Size = new System.Drawing.Size(140, 26);
 
-        btnSave.Kind = IndustrialSensorMonitor.UI.ButtonKind.Primary;
-        btnSave.Icon = IndustrialSensorMonitor.UI.VectorIcon.Save;
-        btnSave.Margin = new System.Windows.Forms.Padding(0, 0, 10, 0);
-        btnSave.Name = "btnSave";
-        btnSave.Size = new System.Drawing.Size(160, 38);
+        flpInputRow.Controls.Add(lblSensorName);
+        flpInputRow.Controls.Add(cmbSensorName);
+        flpInputRow.Controls.Add(lblSensorValue);
+        flpInputRow.Controls.Add(nudSensorValue);
+        flpInputRow.Controls.Add(lblUnit);
+        flpInputRow.Controls.Add(txtUnit);
+        flpInputRow.Dock = System.Windows.Forms.DockStyle.Fill;
+        flpInputRow.FlowDirection = System.Windows.Forms.FlowDirection.LeftToRight;
+        flpInputRow.Margin = new System.Windows.Forms.Padding(0);
+        flpInputRow.Name = "flpInputRow";
+        flpInputRow.WrapContents = false;
+
         btnSave.Text = "ثبت اطلاعات";
+        btnSave.Name = "btnSave";
+        btnSave.Margin = new System.Windows.Forms.Padding(0, 0, 8, 0);
+        ButtonStyler.Apply(btnSave, ButtonStyle.Primary);
 
-        btnClear.Kind = IndustrialSensorMonitor.UI.ButtonKind.Secondary;
-        btnClear.Icon = IndustrialSensorMonitor.UI.VectorIcon.Edit;
-        btnClear.Margin = new System.Windows.Forms.Padding(0, 0, 10, 0);
-        btnClear.Name = "btnClear";
-        btnClear.Size = new System.Drawing.Size(120, 38);
         btnClear.Text = "پاک کردن";
+        btnClear.Name = "btnClear";
+        btnClear.Margin = new System.Windows.Forms.Padding(0, 0, 8, 0);
+        ButtonStyler.Apply(btnClear, ButtonStyle.Secondary);
 
-        btnRefresh.Kind = IndustrialSensorMonitor.UI.ButtonKind.Secondary;
-        btnRefresh.Icon = IndustrialSensorMonitor.UI.VectorIcon.Refresh;
-        btnRefresh.Margin = new System.Windows.Forms.Padding(0, 0, 10, 0);
-        btnRefresh.Name = "btnRefresh";
-        btnRefresh.Size = new System.Drawing.Size(150, 38);
         btnRefresh.Text = "بارگذاری مجدد";
+        btnRefresh.Name = "btnRefresh";
+        btnRefresh.Margin = new System.Windows.Forms.Padding(0, 0, 8, 0);
+        ButtonStyler.Apply(btnRefresh, ButtonStyle.Secondary);
 
-        btnOpenDataFolder.Kind = IndustrialSensorMonitor.UI.ButtonKind.Ghost;
-        btnOpenDataFolder.Icon = IndustrialSensorMonitor.UI.VectorIcon.Export;
-        btnOpenDataFolder.Margin = new System.Windows.Forms.Padding(0, 0, 10, 0);
+        btnOpenDataFolder.Text = "پوشه فایل داده";
         btnOpenDataFolder.Name = "btnOpenDataFolder";
-        btnOpenDataFolder.Size = new System.Drawing.Size(150, 38);
-        btnOpenDataFolder.Text = "پوشه داده";
+        btnOpenDataFolder.Margin = new System.Windows.Forms.Padding(0, 0, 8, 0);
+        ButtonStyler.Apply(btnOpenDataFolder, ButtonStyle.Ghost);
 
-        btnAbout.Kind = IndustrialSensorMonitor.UI.ButtonKind.Ghost;
-        btnAbout.Icon = IndustrialSensorMonitor.UI.VectorIcon.Info;
-        btnAbout.Margin = new System.Windows.Forms.Padding(0);
+        btnAbout.Text = "درباره برنامه";
         btnAbout.Name = "btnAbout";
-        btnAbout.Size = new System.Drawing.Size(110, 38);
-        btnAbout.Text = "درباره";
+        btnAbout.Margin = new System.Windows.Forms.Padding(0);
+        ButtonStyler.Apply(btnAbout, ButtonStyle.Ghost);
 
         flpButtons.Controls.Add(btnSave);
         flpButtons.Controls.Add(btnClear);
@@ -493,29 +505,19 @@ public partial class MainForm
         flpButtons.Controls.Add(btnAbout);
         flpButtons.Dock = System.Windows.Forms.DockStyle.Fill;
         flpButtons.FlowDirection = System.Windows.Forms.FlowDirection.LeftToRight;
-        flpButtons.Margin = new System.Windows.Forms.Padding(0, 8, 0, 0);
+        flpButtons.Margin = new System.Windows.Forms.Padding(0, 4, 0, 0);
         flpButtons.Name = "flpButtons";
         flpButtons.WrapContents = false;
 
-        tlpInput.ColumnCount = 4;
-        tlpInput.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize));
-        tlpInput.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 55F));
-        tlpInput.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.AutoSize));
-        tlpInput.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 45F));
-        tlpInput.RowCount = 3;
-        tlpInput.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 38F));
+        tlpInput.ColumnCount = 1;
+        tlpInput.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
+        tlpInput.RowCount = 2;
         tlpInput.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 38F));
         tlpInput.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
         tlpInput.Dock = System.Windows.Forms.DockStyle.Fill;
         tlpInput.Margin = new System.Windows.Forms.Padding(0);
-        tlpInput.Controls.Add(lblSensorName, 0, 0);
-        tlpInput.Controls.Add(cmbSensorName, 1, 0);
-        tlpInput.Controls.Add(lblSensorValue, 2, 0);
-        tlpInput.Controls.Add(nudSensorValue, 3, 0);
-        tlpInput.Controls.Add(lblUnit, 0, 1);
-        tlpInput.Controls.Add(txtUnit, 1, 1);
-        tlpInput.Controls.Add(flpButtons, 0, 2);
-        tlpInput.SetColumnSpan(flpButtons, 4);
+        tlpInput.Controls.Add(flpInputRow, 0, 0);
+        tlpInput.Controls.Add(flpButtons, 0, 1);
 
         grpInput.Title = "ثبت اطلاعات سنسور";
         grpInput.Hint = "مقدار را با حداکثر ۴ رقم اعشار وارد کنید";
@@ -529,7 +531,7 @@ public partial class MainForm
         // کارت جست‌وجو و فیلتر
         // ---------------------------------------------------------------
         lblFilterSensor.AutoSize = true;
-        lblFilterSensor.Margin = new System.Windows.Forms.Padding(0, 7, 6, 0);
+        lblFilterSensor.Margin = new System.Windows.Forms.Padding(0, 9, 6, 0);
         lblFilterSensor.ForeColor = IndustrialSensorMonitor.UI.AppTheme.TextSecondary;
         lblFilterSensor.Text = "نوع سنسور:";
 
@@ -537,10 +539,10 @@ public partial class MainForm
         cmbFilterSensor.FlatStyle = System.Windows.Forms.FlatStyle.Flat;
         cmbFilterSensor.Margin = new System.Windows.Forms.Padding(0, 2, 18, 0);
         cmbFilterSensor.Name = "cmbFilterSensor";
-        cmbFilterSensor.Size = new System.Drawing.Size(170, 26);
+        cmbFilterSensor.Size = new System.Drawing.Size(150, 26);
 
         lblFilterText.AutoSize = true;
-        lblFilterText.Margin = new System.Windows.Forms.Padding(0, 7, 6, 0);
+        lblFilterText.Margin = new System.Windows.Forms.Padding(0, 9, 6, 0);
         lblFilterText.ForeColor = IndustrialSensorMonitor.UI.AppTheme.TextSecondary;
         lblFilterText.Text = "جست‌وجو:";
 
@@ -548,10 +550,10 @@ public partial class MainForm
         txtFilterText.Margin = new System.Windows.Forms.Padding(0, 2, 18, 0);
         txtFilterText.MaxLength = 100;
         txtFilterText.Name = "txtFilterText";
-        txtFilterText.Size = new System.Drawing.Size(200, 26);
+        txtFilterText.Size = new System.Drawing.Size(170, 26);
 
         lblFilterFrom.AutoSize = true;
-        lblFilterFrom.Margin = new System.Windows.Forms.Padding(0, 7, 6, 0);
+        lblFilterFrom.Margin = new System.Windows.Forms.Padding(0, 9, 6, 0);
         lblFilterFrom.ForeColor = IndustrialSensorMonitor.UI.AppTheme.TextSecondary;
         lblFilterFrom.Text = "از تاریخ:";
 
@@ -561,10 +563,10 @@ public partial class MainForm
         dtpFilterFrom.Name = "dtpFilterFrom";
         dtpFilterFrom.ShowCheckBox = true;
         dtpFilterFrom.Checked = false;
-        dtpFilterFrom.Size = new System.Drawing.Size(140, 26);
+        dtpFilterFrom.Size = new System.Drawing.Size(132, 26);
 
         lblFilterTo.AutoSize = true;
-        lblFilterTo.Margin = new System.Windows.Forms.Padding(0, 7, 6, 0);
+        lblFilterTo.Margin = new System.Windows.Forms.Padding(0, 9, 6, 0);
         lblFilterTo.ForeColor = IndustrialSensorMonitor.UI.AppTheme.TextSecondary;
         lblFilterTo.Text = "تا تاریخ:";
 
@@ -574,7 +576,7 @@ public partial class MainForm
         dtpFilterTo.Name = "dtpFilterTo";
         dtpFilterTo.ShowCheckBox = true;
         dtpFilterTo.Checked = false;
-        dtpFilterTo.Size = new System.Drawing.Size(140, 26);
+        dtpFilterTo.Size = new System.Drawing.Size(132, 26);
 
         flpFilterRow1.Controls.Add(lblFilterSensor);
         flpFilterRow1.Controls.Add(cmbFilterSensor);
@@ -591,7 +593,7 @@ public partial class MainForm
         flpFilterRow1.WrapContents = false;
 
         lblFilterValueFrom.AutoSize = true;
-        lblFilterValueFrom.Margin = new System.Windows.Forms.Padding(0, 7, 6, 0);
+        lblFilterValueFrom.Margin = new System.Windows.Forms.Padding(0, 9, 6, 0);
         lblFilterValueFrom.ForeColor = IndustrialSensorMonitor.UI.AppTheme.TextSecondary;
         lblFilterValueFrom.Text = "مقدار از:";
 
@@ -601,10 +603,10 @@ public partial class MainForm
         txtFilterValueFrom.Name = "txtFilterValueFrom";
         txtFilterValueFrom.RightToLeft = System.Windows.Forms.RightToLeft.No;
         txtFilterValueFrom.TextAlign = System.Windows.Forms.HorizontalAlignment.Left;
-        txtFilterValueFrom.Size = new System.Drawing.Size(100, 26);
+        txtFilterValueFrom.Size = new System.Drawing.Size(90, 26);
 
         lblFilterValueTo.AutoSize = true;
-        lblFilterValueTo.Margin = new System.Windows.Forms.Padding(0, 7, 6, 0);
+        lblFilterValueTo.Margin = new System.Windows.Forms.Padding(0, 9, 6, 0);
         lblFilterValueTo.ForeColor = IndustrialSensorMonitor.UI.AppTheme.TextSecondary;
         lblFilterValueTo.Text = "تا:";
 
@@ -614,24 +616,28 @@ public partial class MainForm
         txtFilterValueTo.Name = "txtFilterValueTo";
         txtFilterValueTo.RightToLeft = System.Windows.Forms.RightToLeft.No;
         txtFilterValueTo.TextAlign = System.Windows.Forms.HorizontalAlignment.Left;
-        txtFilterValueTo.Size = new System.Drawing.Size(100, 26);
+        txtFilterValueTo.Size = new System.Drawing.Size(90, 26);
 
-        btnApplyFilter.Kind = IndustrialSensorMonitor.UI.ButtonKind.Primary;
-        btnApplyFilter.Icon = IndustrialSensorMonitor.UI.VectorIcon.Filter;
-        btnApplyFilter.Margin = new System.Windows.Forms.Padding(0, 0, 8, 0);
-        btnApplyFilter.Name = "btnApplyFilter";
-        btnApplyFilter.Size = new System.Drawing.Size(140, 32);
         btnApplyFilter.Text = "اعمال فیلتر";
+        btnApplyFilter.Name = "btnApplyFilter";
+        btnApplyFilter.Margin = new System.Windows.Forms.Padding(0, 1, 8, 0);
+        ButtonStyler.Apply(btnApplyFilter, ButtonStyle.Primary);
 
-        btnResetFilter.Kind = IndustrialSensorMonitor.UI.ButtonKind.Secondary;
-        btnResetFilter.Icon = IndustrialSensorMonitor.UI.VectorIcon.Undo;
-        btnResetFilter.Margin = new System.Windows.Forms.Padding(0, 0, 8, 0);
-        btnResetFilter.Name = "btnResetFilter";
-        btnResetFilter.Size = new System.Drawing.Size(150, 32);
         btnResetFilter.Text = "پاک کردن فیلتر";
+        btnResetFilter.Name = "btnResetFilter";
+        btnResetFilter.Margin = new System.Windows.Forms.Padding(0, 1, 8, 0);
+        ButtonStyler.Apply(btnResetFilter, ButtonStyle.Secondary);
+
+        // تیک نمایش نمودار بیرون از کارت نمودار است تا با پنهان شدن نمودار، در دسترس بماند
+        chkShowChart.AutoSize = true;
+        chkShowChart.Checked = true;
+        chkShowChart.CheckState = System.Windows.Forms.CheckState.Checked;
+        chkShowChart.Margin = new System.Windows.Forms.Padding(6, 9, 10, 0);
+        chkShowChart.Name = "chkShowChart";
+        chkShowChart.Text = "نمایش نمودار (Ctrl+G)";
 
         lblFilterResult.AutoSize = true;
-        lblFilterResult.Margin = new System.Windows.Forms.Padding(6, 8, 0, 0);
+        lblFilterResult.Margin = new System.Windows.Forms.Padding(4, 11, 0, 0);
         lblFilterResult.ForeColor = IndustrialSensorMonitor.UI.AppTheme.TextSecondary;
         lblFilterResult.Font = IndustrialSensorMonitor.UI.AppTheme.SmallFont;
         lblFilterResult.Text = string.Empty;
@@ -642,6 +648,7 @@ public partial class MainForm
         flpFilterRow2.Controls.Add(txtFilterValueTo);
         flpFilterRow2.Controls.Add(btnApplyFilter);
         flpFilterRow2.Controls.Add(btnResetFilter);
+        flpFilterRow2.Controls.Add(chkShowChart);
         flpFilterRow2.Controls.Add(lblFilterResult);
         flpFilterRow2.Dock = System.Windows.Forms.DockStyle.Fill;
         flpFilterRow2.FlowDirection = System.Windows.Forms.FlowDirection.LeftToRight;
@@ -652,7 +659,7 @@ public partial class MainForm
         tlpFilter.ColumnCount = 1;
         tlpFilter.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
         tlpFilter.RowCount = 2;
-        tlpFilter.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 36F));
+        tlpFilter.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 38F));
         tlpFilter.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
         tlpFilter.Dock = System.Windows.Forms.DockStyle.Fill;
         tlpFilter.Margin = new System.Windows.Forms.Padding(0);
@@ -735,57 +742,43 @@ public partial class MainForm
         // ---------------------------------------------------------------
         // ابزارهای جدول
         // ---------------------------------------------------------------
-        btnEditRecord.Kind = IndustrialSensorMonitor.UI.ButtonKind.Secondary;
-        btnEditRecord.Icon = IndustrialSensorMonitor.UI.VectorIcon.Edit;
-        btnEditRecord.Enabled = false;
-        btnEditRecord.Margin = new System.Windows.Forms.Padding(0, 0, 8, 0);
-        btnEditRecord.Name = "btnEditRecord";
-        btnEditRecord.Size = new System.Drawing.Size(120, 34);
         btnEditRecord.Text = "ویرایش رکورد";
+        btnEditRecord.Enabled = false;
+        btnEditRecord.Name = "btnEditRecord";
+        btnEditRecord.Margin = new System.Windows.Forms.Padding(0, 0, 8, 0);
+        ButtonStyler.Apply(btnEditRecord, ButtonStyle.Secondary);
 
-        btnDeleteRecord.Kind = IndustrialSensorMonitor.UI.ButtonKind.Danger;
-        btnDeleteRecord.Icon = IndustrialSensorMonitor.UI.VectorIcon.Delete;
-        btnDeleteRecord.Enabled = false;
-        btnDeleteRecord.Margin = new System.Windows.Forms.Padding(0, 0, 8, 0);
-        btnDeleteRecord.Name = "btnDeleteRecord";
-        btnDeleteRecord.Size = new System.Drawing.Size(130, 34);
         btnDeleteRecord.Text = "حذف انتخاب‌شده";
+        btnDeleteRecord.Enabled = false;
+        btnDeleteRecord.Name = "btnDeleteRecord";
+        btnDeleteRecord.Margin = new System.Windows.Forms.Padding(0, 0, 8, 0);
+        ButtonStyler.Apply(btnDeleteRecord, ButtonStyle.Danger);
 
-        btnUndoDelete.Kind = IndustrialSensorMonitor.UI.ButtonKind.Ghost;
-        btnUndoDelete.Icon = IndustrialSensorMonitor.UI.VectorIcon.Undo;
-        btnUndoDelete.Enabled = false;
-        btnUndoDelete.Margin = new System.Windows.Forms.Padding(0, 0, 8, 0);
-        btnUndoDelete.Name = "btnUndoDelete";
-        btnUndoDelete.Size = new System.Drawing.Size(130, 34);
         btnUndoDelete.Text = "بازگردانی حذف";
+        btnUndoDelete.Enabled = false;
+        btnUndoDelete.Name = "btnUndoDelete";
+        btnUndoDelete.Margin = new System.Windows.Forms.Padding(0, 0, 8, 0);
+        ButtonStyler.Apply(btnUndoDelete, ButtonStyle.Ghost);
 
-        btnExportCsv.Kind = IndustrialSensorMonitor.UI.ButtonKind.Secondary;
-        btnExportCsv.Icon = IndustrialSensorMonitor.UI.VectorIcon.Export;
-        btnExportCsv.Margin = new System.Windows.Forms.Padding(0, 0, 8, 0);
-        btnExportCsv.Name = "btnExportCsv";
-        btnExportCsv.Size = new System.Drawing.Size(120, 34);
         btnExportCsv.Text = "خروجی CSV";
+        btnExportCsv.Name = "btnExportCsv";
+        btnExportCsv.Margin = new System.Windows.Forms.Padding(0, 0, 8, 0);
+        ButtonStyler.Apply(btnExportCsv, ButtonStyle.Secondary);
 
-        btnImportCsv.Kind = IndustrialSensorMonitor.UI.ButtonKind.Secondary;
-        btnImportCsv.Icon = IndustrialSensorMonitor.UI.VectorIcon.Import;
-        btnImportCsv.Margin = new System.Windows.Forms.Padding(0, 0, 8, 0);
-        btnImportCsv.Name = "btnImportCsv";
-        btnImportCsv.Size = new System.Drawing.Size(120, 34);
         btnImportCsv.Text = "ورود از CSV";
+        btnImportCsv.Name = "btnImportCsv";
+        btnImportCsv.Margin = new System.Windows.Forms.Padding(0, 0, 8, 0);
+        ButtonStyler.Apply(btnImportCsv, ButtonStyle.Secondary);
 
-        btnRestoreBackup.Kind = IndustrialSensorMonitor.UI.ButtonKind.Ghost;
-        btnRestoreBackup.Icon = IndustrialSensorMonitor.UI.VectorIcon.Restore;
-        btnRestoreBackup.Margin = new System.Windows.Forms.Padding(0, 0, 8, 0);
-        btnRestoreBackup.Name = "btnRestoreBackup";
-        btnRestoreBackup.Size = new System.Drawing.Size(160, 34);
         btnRestoreBackup.Text = "نسخه‌های پشتیبان";
+        btnRestoreBackup.Name = "btnRestoreBackup";
+        btnRestoreBackup.Margin = new System.Windows.Forms.Padding(0, 0, 8, 0);
+        ButtonStyler.Apply(btnRestoreBackup, ButtonStyle.Ghost);
 
-        btnDataHealth.Kind = IndustrialSensorMonitor.UI.ButtonKind.Ghost;
-        btnDataHealth.Icon = IndustrialSensorMonitor.UI.VectorIcon.Health;
-        btnDataHealth.Margin = new System.Windows.Forms.Padding(0);
-        btnDataHealth.Name = "btnDataHealth";
-        btnDataHealth.Size = new System.Drawing.Size(120, 34);
         btnDataHealth.Text = "سلامت داده";
+        btnDataHealth.Name = "btnDataHealth";
+        btnDataHealth.Margin = new System.Windows.Forms.Padding(0);
+        ButtonStyler.Apply(btnDataHealth, ButtonStyle.Ghost);
 
         lblRecordsHint.AutoSize = false;
         lblRecordsHint.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -838,7 +831,7 @@ public partial class MainForm
         tlpRecords.ColumnCount = 1;
         tlpRecords.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
         tlpRecords.RowCount = 3;
-        tlpRecords.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 42F));
+        tlpRecords.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 46F));
         tlpRecords.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
         tlpRecords.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 24F));
         tlpRecords.Dock = System.Windows.Forms.DockStyle.Fill;
@@ -864,35 +857,23 @@ public partial class MainForm
         cmbChartRange.Name = "cmbChartRange";
         cmbChartRange.Size = new System.Drawing.Size(150, 26);
 
-        chkShowChart.AutoSize = true;
-        chkShowChart.Checked = true;
-        chkShowChart.CheckState = System.Windows.Forms.CheckState.Checked;
-        chkShowChart.Margin = new System.Windows.Forms.Padding(10, 7, 12, 0);
-        chkShowChart.Name = "chkShowChart";
-        chkShowChart.Text = "نمایش نمودار";
-
-        btnChartPng.Kind = IndustrialSensorMonitor.UI.ButtonKind.Ghost;
-        btnChartPng.Icon = IndustrialSensorMonitor.UI.VectorIcon.Chart;
-        btnChartPng.Margin = new System.Windows.Forms.Padding(0, 0, 8, 0);
-        btnChartPng.Name = "btnChartPng";
-        btnChartPng.Size = new System.Drawing.Size(160, 30);
         btnChartPng.Text = "ذخیره تصویر نمودار";
+        btnChartPng.Name = "btnChartPng";
+        btnChartPng.Margin = new System.Windows.Forms.Padding(0, 0, 8, 0);
+        ButtonStyler.Apply(btnChartPng, ButtonStyle.Ghost);
 
-        btnAlarmReport.Kind = IndustrialSensorMonitor.UI.ButtonKind.Secondary;
-        btnAlarmReport.Icon = IndustrialSensorMonitor.UI.VectorIcon.Info;
-        btnAlarmReport.Margin = new System.Windows.Forms.Padding(0);
-        btnAlarmReport.Name = "btnAlarmReport";
-        btnAlarmReport.Size = new System.Drawing.Size(160, 30);
         btnAlarmReport.Text = "گزارش هشدارها";
+        btnAlarmReport.Name = "btnAlarmReport";
+        btnAlarmReport.Margin = new System.Windows.Forms.Padding(0, 0, 12, 0);
+        ButtonStyler.Apply(btnAlarmReport, ButtonStyle.Secondary);
 
         lblChartStats.AutoSize = true;
-        lblChartStats.Margin = new System.Windows.Forms.Padding(14, 8, 0, 0);
+        lblChartStats.Margin = new System.Windows.Forms.Padding(6, 10, 0, 0);
         lblChartStats.ForeColor = IndustrialSensorMonitor.UI.AppTheme.TextSecondary;
         lblChartStats.Font = IndustrialSensorMonitor.UI.AppTheme.SmallFont;
         lblChartStats.Text = string.Empty;
 
         flpChartTools.Controls.Add(cmbChartRange);
-        flpChartTools.Controls.Add(chkShowChart);
         flpChartTools.Controls.Add(btnChartPng);
         flpChartTools.Controls.Add(btnAlarmReport);
         flpChartTools.Controls.Add(lblChartStats);
@@ -909,7 +890,7 @@ public partial class MainForm
         tlpChart.ColumnCount = 1;
         tlpChart.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
         tlpChart.RowCount = 2;
-        tlpChart.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 34F));
+        tlpChart.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 38F));
         tlpChart.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
         tlpChart.Dock = System.Windows.Forms.DockStyle.Fill;
         tlpChart.Margin = new System.Windows.Forms.Padding(0);
@@ -931,10 +912,10 @@ public partial class MainForm
         tlpRoot.ColumnStyles.Add(new System.Windows.Forms.ColumnStyle(System.Windows.Forms.SizeType.Percent, 100F));
         tlpRoot.RowCount = 5;
         tlpRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 104F));
-        tlpRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 196F));
-        tlpRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 132F));
+        tlpRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 152F));
+        tlpRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 136F));
         tlpRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-        tlpRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 258F));
+        tlpRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 250F));
         tlpRoot.BackColor = IndustrialSensorMonitor.UI.AppTheme.Background;
         tlpRoot.Dock = System.Windows.Forms.DockStyle.Fill;
         tlpRoot.Margin = new System.Windows.Forms.Padding(0);
@@ -1040,6 +1021,7 @@ public partial class MainForm
         miDeleteRecord.Click += btnDeleteRecord_Click;
         miUndoDelete.Click += btnUndoDelete_Click;
         miAlarmReport.Click += btnAlarmReport_Click;
+        miToggleChart.Click += miToggleChart_Click;
         miRefresh.Click += btnRefresh_Click;
         miStartMonitoring.Click += miStartMonitoring_Click;
         miStopMonitoring.Click += miStopMonitoring_Click;

@@ -1451,12 +1451,21 @@ public partial class MainForm : Form
 
     private void chkShowChart_CheckedChanged(object? sender, EventArgs e)
     {
+        // آیتم منو همیشه با تیک هم‌زمان می‌ماند (تیک در کارت فیلتر و منو، هر دو یک وضعیت را نشان می‌دهند)
+        miToggleChart.Checked = chkShowChart.Checked;
+
         if (_suppressChartCheck)
         {
             return;
         }
 
         ApplyChartVisibility();
+    }
+
+    private void miToggleChart_Click(object? sender, EventArgs e)
+    {
+        // تغییر وضعیت از منو، تیک کارت فیلتر را هم به‌روزرسانی می‌کند
+        chkShowChart.Checked = miToggleChart.Checked;
     }
 
     private void cmbChartRange_SelectedIndexChanged(object? sender, EventArgs e)
