@@ -39,7 +39,7 @@ jobs:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
       - name: کش پکیج‌های NuGet
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.nuget/packages
           key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/packages.lock.json') }}
