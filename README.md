@@ -686,15 +686,16 @@ git push origin v1.3.0
 | تست‌های خودکار (xUnit) | ✅ موفق — ۱۸۵ مورد تست (Fact و InlineData) در ۱۹ فایل تست |
 | بررسی قالب‌بندی (`dotnet format --verify-no-changes`) | ✅ بدون مورد (غیرمسدودکننده، با گزارش در Artifact) |
 | اندازه‌گیری پوشش کد (coverlet، غیرمسدودکننده) | ✅ موفق — Artifact `coverage` تولید شد |
-| انتشار Self-contained Single File (`win-x64`) | ✅ موفق — `IndustrialSensorMonitor.exe` ≈ ۴۵٫۲ مگابایت |
-| ساخت فایل نصب با Inno Setup | ✅ موفق — `IndustrialSensorMonitor-Setup-x64.exe` ≈ ۳۳٫۴ مگابایت |
-| ساخت نسخه قابل حمل | ✅ موفق — `IndustrialSensorMonitor-Portable-x64.zip` ≈ ۴۵٫۳ مگابایت |
+| انتشار Self-contained Single File (`win-x64`) | ✅ موفق — `IndustrialSensorMonitor.exe` ≈ ۱۱۱ مگابایت |
+| ساخت فایل نصب با Inno Setup | ✅ موفق — `IndustrialSensorMonitor-Setup-x64.exe` ≈ ۳۳٫۹ مگابایت |
+| ساخت نسخه قابل حمل | ✅ موفق — `IndustrialSensorMonitor-Portable-x64.zip` ≈ ۴۵٫۴ مگابایت |
 | بارگذاری Artifacts | ✅ موفق (EXE، Setup، Portable، test-results، coverage) |
-| انتشار GitHub Release | برای نسخه ۱٫۳٫۰ هنوز انجام نشده — با Push تگ `v1.3.0` به‌صورت خودکار منتشر می‌شود |
+| انتشار GitHub Release | ✅ موفق — [نسخه v1.3.0](https://github.com/hoseinsedaqat/Industrial-SensorMonitor/releases/tag/v1.3.0) |
 
-> **نکته:** نسخه منتشرشده فعلی در Releases همان `v1.2.0` است. برای انتشار `v1.3.0` تگ بزنید
-> (راهنما: [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md)). تا آن زمان فایل‌های نسخه ۱٫۳٫۰ فقط در
-> Artifacts همین اجرا در دسترس هستند.
+> **نکته درباره حجم‌ها:** اعداد بالا حجم واقعی فایل‌های Release هستند. حجم Artifactها در صفحه Actions کمتر
+> دیده می‌شود، چون GitHub آن‌ها را به‌صورت ZIP فشرده ذخیره می‌کند.
+>
+> **نسخه منتشرشده فعلی:** `v1.3.0` (راهنمای انتشار نسخه بعدی: [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md)).
 
 تست‌های خودکار شامل تست واقعی ساخت فرم در یک Thread با `ApartmentState.STA` (بررسی قابل‌استفاده بودن کادر ورود
 مقدار سنسور و وجود کنترل‌های اصلی) و تست‌های ذخیره‌سازی روی فایل موقت هستند.
