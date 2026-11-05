@@ -6,6 +6,7 @@ on:
     branches:
       - main
       - test
+      - arena/78e6b387-industrial-sensormonitor
     tags:
       - 'v*'
   workflow_dispatch:
@@ -37,6 +38,14 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
+
+      - name: کش پکیج‌های NuGet
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/packages.lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
 
       - name: نمایش اطلاعات محیط Build
         shell: pwsh
@@ -76,6 +85,62 @@ jobs:
           -p:Version=${{ steps.version.outputs.version }}
           --logger "trx;LogFileName=test-results.trx"
           --results-directory TestResults
+
+      - name: بررسی قالب‌بندی کد (dotnet format)
+        id: format
+        # این بررسی مسدودکننده نیست تا یک اختلاف قالب‌بندی، انتشار نسخه را متوقف نکند؛
+        # نتیجه آن در خلاصه اجرا (Summary) و Artifact «format-report» قابل مشاهده است.
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          dotnet format ${{ env.SOLUTION_PATH }} --verify-no-changes --severity warn --no-restore *>&1 |
+            Tee-Object -FilePath format-report.txt
+          $exitCode = $LASTEXITCODE
+          if ($exitCode -eq 0) {
+            Write-Host 'قالب‌بندی کد بدون مشکل است.'
+            '### بررسی قالب‌بندی کد' >> $env:GITHUB_STEP_SUMMARY
+            '✅ `dotnet format --verify-no-changes` بدون خطا اجرا شد.' >> $env:GITHUB_STEP_SUMMARY
+          }
+          else {
+            Write-Host "::warning::بررسی قالب‌بندی مواردی پیدا کرد (کد خروج $exitCode)."
+            '### بررسی قالب‌بندی کد' >> $env:GITHUB_STEP_SUMMARY
+            '⚠️ `dotnet format --verify-no-changes` مواردی پیدا کرد؛ جزئیات در Artifact «format-report» است.' >> $env:GITHUB_STEP_SUMMARY
+          }
+
+      - name: بارگذاری گزارش قالب‌بندی
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: format-report
+          path: format-report.txt
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: نمایش خلاصه نتایج تست‌ها
+        if: always()
+        shell: pwsh
+        run: |
+          $trx = Get-ChildItem -Path TestResults -Filter *.trx -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $trx) {
+            '### نتایج تست‌ها' >> $env:GITHUB_STEP_SUMMARY
+            'فایل نتیجه تست‌ها (trx) پیدا نشد.' >> $env:GITHUB_STEP_SUMMARY
+            exit 0
+          }
+
+          [xml]$result = Get-Content -Path $trx.FullName
+          $counters = $result.TestRun.ResultSummary.Counters
+          $outcome = $result.TestRun.ResultSummary.Outcome
+
+          '### نتایج تست‌ها' >> $env:GITHUB_STEP_SUMMARY
+          '' >> $env:GITHUB_STEP_SUMMARY
+          '| وضعیت | تعداد |' >> $env:GITHUB_STEP_SUMMARY
+          '| --- | --- |' >> $env:GITHUB_STEP_SUMMARY
+          "| موفق | $($counters.passed) |" >> $env:GITHUB_STEP_SUMMARY
+          "| ناموفق | $($counters.failed) |" >> $env:GITHUB_STEP_SUMMARY
+          "| رد‌شده | $($counters.notExecuted) |" >> $env:GITHUB_STEP_SUMMARY
+          "| **مجموع** | **$($counters.total)** |" >> $env:GITHUB_STEP_SUMMARY
+          '' >> $env:GITHUB_STEP_SUMMARY
+          "نتیجه کلی: **$outcome**" >> $env:GITHUB_STEP_SUMMARY
 
       - name: انتشار فایل اجرایی (Self-contained, Single File)
         run: >

@@ -1,7 +1,7 @@
 ; =====================================================================
 ; اسکریپت ساخت فایل نصب برنامه Industrial Sensor Monitor
 ; ساخت با Inno Setup 6
-;   ISCC.exe installer\Setup.iss /DMyAppVersion=1.1.1
+;   ISCC.exe installer\Setup.iss /DMyAppVersion=1.2.0
 ; ---------------------------------------------------------------------
 ; این نسخه اطلاعات را در یک فایل JSON محلی ذخیره می‌کند و به هیچ
 ; SQL Server یا سرویس دیگری نیاز ندارد.
@@ -12,7 +12,7 @@
 #define MyAppName "Industrial Sensor Monitor"
 #define MyAppNameFa "سامانه ثبت و مدیریت اطلاعات سنسورهای صنعتی"
 #ifndef MyAppVersion
-  #define MyAppVersion "1.1.1"
+  #define MyAppVersion "1.2.0"
 #endif
 #define MyAppPublisher "Industrial Sensor Monitor"
 #define MyAppExeName "IndustrialSensorMonitor.exe"
@@ -51,6 +51,7 @@ UninstallDisplayName={#MyAppName} {#MyAppVersion}
 UninstallDisplayIcon={app}\{#MyAppExeName}
 MinVersion=10.0
 DisableDirPage=no
+SetupIconFile=..\src\IndustrialSensorMonitor\Assets\app.ico
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
