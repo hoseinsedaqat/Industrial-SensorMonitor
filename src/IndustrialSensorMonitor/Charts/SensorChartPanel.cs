@@ -527,9 +527,7 @@ public sealed class SensorChartPanel : Control
         decimal minValue,
         decimal maxValue)
     {
-        var hover = _hover;
-
-        if (hover is null || hover.SeriesIndex >= _series.Count)
+        if (_hover is not { } hover || hover.SeriesIndex >= _series.Count)
         {
             return;
         }
