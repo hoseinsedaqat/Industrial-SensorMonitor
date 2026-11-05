@@ -14,9 +14,30 @@ internal static class Program
     private const string SettingsFileName = "appsettings.json";
     private const string DataFilePathKey = "Storage:DataFilePath";
 
+    /// <summary>نام Mutex سراسری برای جلوگیری از اجرای هم‌زمان دو نسخه از برنامه.</summary>
+    private const string SingleInstanceMutexName = @"Local\IndustrialSensorMonitor.SingleInstance";
+
+    /// <summary>تعداد روزی که فایل‌های گزارش نگهداری می‌شوند.</summary>
+    public const int LogRetentionDays = 30;
+
     [STAThread]
     private static void Main()
     {
+        using var singleInstance = new Mutex(initiallyOwned: true, SingleInstanceMutexName, out var isFirstInstance);
+
+        // اگر نسخه قبلی به‌صورت غیرعادی بسته شده باشد، Mutex رهاشده (Abandoned) در اختیار این نمونه قرار می‌گیرد
+        var hasOwnership = isFirstInstance || singleInstance.WaitOne(TimeSpan.Zero);
+
+        if (!hasOwnership)
+        {
+            ShowMessage(
+                "نسخه‌ای از برنامه از قبل در حال اجراست." + Environment.NewLine +
+                "برای جلوگیری از تداخل در فایل داده، فقط یک نسخه می‌تواند هم‌زمان اجرا شود.",
+                "اجرای هم‌زمان",
+                MessageBoxIcon.Information);
+            return;
+        }
+
         // راه‌اندازی تنظیمات پیش‌فرض Windows Forms (فونت، DPI و Visual Styles)
         ApplicationConfiguration.Initialize();
 
@@ -24,6 +45,9 @@ internal static class Program
         Application.SetUnhandledExceptionMode(UnhandledExceptionMode.CatchException);
         Application.ThreadException += OnThreadException;
         AppDomain.CurrentDomain.UnhandledException += OnUnhandledException;
+
+        // نگهداری گزارش‌ها فقط برای بازه مشخص (پیش‌فرض ۳۰ روز)
+        AppLog.Cleanup(AppLog.LogDirectory, LogRetentionDays, DateTime.Now);
 
         var dataFilePath = LoadDataFilePath(out var configurationWarning);
 
@@ -34,7 +58,24 @@ internal static class Program
 
         var store = new SensorDataStore(dataFilePath);
 
-        Application.Run(new MainForm(store));
+        try
+        {
+            Application.Run(new MainForm(store));
+        }
+        finally
+        {
+            if (hasOwnership)
+            {
+                try
+                {
+                    singleInstance.ReleaseMutex();
+                }
+                catch (ApplicationException)
+                {
+                    // Mutex در اختیار این Thread نبود؛ رهاسازی لازم نیست
+                }
+            }
+        }
     }
 
     /// <summary>

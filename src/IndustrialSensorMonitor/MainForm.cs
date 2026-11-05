@@ -1,13 +1,19 @@
 using System.Diagnostics;
 using System.Globalization;
 using System.Reflection;
+using System.Runtime.InteropServices;
+using IndustrialSensorMonitor.Analysis;
 using IndustrialSensorMonitor.Charts;
 using IndustrialSensorMonitor.Diagnostics;
 using IndustrialSensorMonitor.Export;
 using IndustrialSensorMonitor.Formatting;
 using IndustrialSensorMonitor.Models;
+using IndustrialSensorMonitor.Settings;
 using IndustrialSensorMonitor.Simulation;
+using IndustrialSensorMonitor.Sorting;
+using IndustrialSensorMonitor.Statistics;
 using IndustrialSensorMonitor.Storage;
+using IndustrialSensorMonitor.UI;
 using IndustrialSensorMonitor.Updates;
 using IndustrialSensorMonitor.Validation;
 
@@ -19,14 +25,24 @@ namespace IndustrialSensorMonitor;
 /// </summary>
 public partial class MainForm : Form
 {
-    private static readonly Color StatusReadyColor = Color.FromArgb(74, 222, 128);
-    private static readonly Color StatusWarningColor = Color.FromArgb(252, 211, 77);
-    private static readonly Color StatusErrorColor = Color.FromArgb(248, 113, 113);
-
     private const string AllSensorsFilterText = "همه سنسورها";
 
+    /// <summary>عنوان پایه ستون‌های جدول (بدون نماد مرتب‌سازی).</summary>
+    private static readonly string[] BaseColumnHeaders =
+    [
+        "شناسه",
+        "نام سنسور",
+        "مقدار سنسور",
+        "واحد اندازه‌گیری",
+        "تاریخ و ساعت ثبت"
+    ];
+
     private readonly SensorDataStore _store;
+    private readonly UserSettingsStore _settingsStore;
     private readonly Random _random = new();
+
+    /// <summary>رکوردهایی که آخرین حذف انجام شده و قابل بازگردانی هستند.</summary>
+    private readonly List<SensorData> _undoBuffer = [];
 
     private IReadOnlyList<SensorData> _records = Array.Empty<SensorData>();
     private IReadOnlyList<SensorData> _visibleRecords = Array.Empty<SensorData>();
@@ -35,20 +51,35 @@ public partial class MainForm : Form
     private bool _isTickRunning;
     private float _chartRowHeight;
 
+    private RecordSortColumn? _sortColumn;
+    private bool _sortAscending = true;
+
+    private bool _isInitializing = true;
+    private bool _suppressChartCheck;
+
     /// <summary>ساخت فرم اصلی بر اساس لایه ذخیره‌سازی آماده‌شده در Program.cs.</summary>
-    public MainForm(SensorDataStore store)
+    /// <param name="store">لایه ذخیره‌سازی.</param>
+    /// <param name="settingsStore">مخزن تنظیمات کاربر (اختیاری؛ برای تست).</param>
+    public MainForm(SensorDataStore store, UserSettingsStore? settingsStore = null)
     {
         _store = store ?? throw new ArgumentNullException(nameof(store));
+        _settingsStore = settingsStore ?? new UserSettingsStore();
 
         InitializeComponent();
         ConfigureValueInput();
         LoadSensorList();
         PopulateFilterSensorList();
+        PopulateChartRangeList();
         ApplyTooltips();
         UpdateStatusBarValues();
+        UpdateSortGlyphs();
 
         // مقدار پیش‌فرض نمودار تا زمان خواندن اطلاعات از فایل
-        pnlChart.SetData(Array.Empty<SensorChartPoint>(), string.Empty);
+        pnlChart.SetSeries(Array.Empty<SensorChartSeries>());
+        UpdateRecordsSummary();
+        UpdateSelectionButtons();
+
+        _isInitializing = false;
     }
 
     /// <summary>
@@ -106,25 +137,46 @@ public partial class MainForm : Form
         cmbFilterSensor.SelectedIndex = 0;
     }
 
+    /// <summary>پر کردن فهرست بازه‌های زمانی نمودار.</summary>
+    private void PopulateChartRangeList()
+    {
+        cmbChartRange.BeginUpdate();
+        cmbChartRange.Items.Clear();
+
+        foreach (var title in ChartSeriesBuilder.RangeTitles)
+        {
+            cmbChartRange.Items.Add(title);
+        }
+
+        cmbChartRange.EndUpdate();
+        cmbChartRange.SelectedIndex = (int)ChartRange.Last30Days;
+    }
+
     /// <summary>نمایش راهنما و مسیر فایل داده به‌صورت Tooltip روی کنترل‌های مرتبط.</summary>
     private void ApplyTooltips()
     {
-        tipMain.SetToolTip(lblStatus, "فایل داده: " + _store.DataFilePath);
+        tipMain.SetToolTip(hdrMain, "فایل داده: " + _store.DataFilePath);
         tipMain.SetToolTip(grpRecords, "فایل داده: " + _store.DataFilePath);
         tipMain.SetToolTip(grpChart, "نمودار مقادیر آخرین رکوردهای سنسور انتخاب‌شده در جدول.");
         tipMain.SetToolTip(btnOpenDataFolder, "باز کردن پوشه فایل داده: " + _store.DataDirectory);
+        tipMain.SetToolTip(btnRestoreBackup, "فهرست نسخه‌های پشتیبان و بازگردانی یکی از آن‌ها.");
+        tipMain.SetToolTip(btnDataHealth, "بررسی سلامت محتوای فایل داده و حذف رکوردهای نامعتبر.");
+        tipMain.SetToolTip(btnUndoDelete, "بازگردانی رکوردهایی که آخرین بار حذف شدند (Ctrl+Z).");
         tipMain.SetToolTip(nudSensorValue, "مقدار سنسور را در همین کادر تایپ کنید (تا ۴ رقم اعشار؛ مقادیر منفی و صفر هم مجاز است).");
         tipMain.SetToolTip(lblSensorValue, "مقدار سنسور را در همین کادر تایپ کنید (تا ۴ رقم اعشار؛ مقادیر منفی و صفر هم مجاز است).");
         tipMain.SetToolTip(txtUnit, "واحد اندازه‌گیری؛ با انتخاب سنسور به‌صورت خودکار پر می‌شود و قابل ویرایش است.");
-        tipMain.SetToolTip(txtFilterText, "بخشی از نام سنسور، واحد، شناسه یا مقدار را وارد کنید.");
+        tipMain.SetToolTip(txtFilterText, "بخشی از نام سنسور، واحد، شناسه یا مقدار را وارد کنید. فیلتر خودکار اعمال می‌شود.");
         tipMain.SetToolTip(txtFilterValueFrom, "حد پایین مقدار (خالی = بدون محدودیت). ارقام فارسی هم پذیرفته می‌شود.");
         tipMain.SetToolTip(txtFilterValueTo, "حد بالای مقدار (خالی = بدون محدودیت).");
         tipMain.SetToolTip(dtpFilterFrom, "اگر تیک فعال باشد، فقط رکوردهای این تاریخ و بعد از آن نمایش داده می‌شوند.");
         tipMain.SetToolTip(dtpFilterTo, "اگر تیک فعال باشد، فقط رکوردهای تا پایان این تاریخ نمایش داده می‌شوند.");
         tipMain.SetToolTip(btnEditRecord, "ویرایش رکورد انتخاب‌شده (F2)");
-        tipMain.SetToolTip(btnDeleteRecord, "حذف رکورد انتخاب‌شده (کلید Delete)");
+        tipMain.SetToolTip(btnDeleteRecord, "حذف رکوردهای انتخاب‌شده؛ با Ctrl چند ردیف را انتخاب کنید (Delete)");
         tipMain.SetToolTip(btnExportCsv, "ذخیره رکوردهای نمایش‌داده‌شده در فایل CSV سازگار با Excel (Ctrl+E)");
         tipMain.SetToolTip(btnImportCsv, "افزودن رکوردها از یک فایل CSV که با همین برنامه ساخته شده است.");
+        tipMain.SetToolTip(cmbChartRange, "بازه زمانی نمایش‌داده‌شده در نمودار.");
+        tipMain.SetToolTip(btnChartPng, "ذخیره تصویر نمودار در فایل PNG.");
+        tipMain.SetToolTip(btnAlarmReport, "نمایش رکوردهایی که خارج از محدوده معمول سنسور هستند.");
     }
 
     // ---------------------------------------------------------------------
@@ -139,7 +191,9 @@ public partial class MainForm : Form
             _chartRowHeight = tlpRoot.RowStyles[4].Height;
         }
 
+        ApplyUserSettings();
         ApplyChartVisibility();
+
         await PrepareStorageAsync();
     }
 
@@ -149,14 +203,41 @@ public partial class MainForm : Form
         {
             tmrSimulation.Stop();
         }
+
+        tmrFilterDebounce.Stop();
+        SaveUserSettings();
     }
 
     private void MainForm_KeyDown(object? sender, KeyEventArgs e)
     {
+        if (e.Control && e.KeyCode == Keys.Z)
+        {
+            e.Handled = true;
+            e.SuppressKeyPress = true;
+            btnUndoDelete_Click(sender, EventArgs.Empty);
+            return;
+        }
+
+        if (e.Control && e.KeyCode == Keys.F)
+        {
+            e.Handled = true;
+            e.SuppressKeyPress = true;
+            txtFilterText.Focus();
+            txtFilterText.SelectAll();
+            return;
+        }
+
         if (e.KeyCode == Keys.Delete && dgvSensorData.ContainsFocus)
         {
             e.Handled = true;
             btnDeleteRecord_Click(sender, EventArgs.Empty);
+            return;
+        }
+
+        if (e.KeyCode == Keys.F2 && dgvSensorData.ContainsFocus)
+        {
+            e.Handled = true;
+            btnEditRecord_Click(sender, EventArgs.Empty);
             return;
         }
 
@@ -309,6 +390,63 @@ public partial class MainForm : Form
     }
 
     // ---------------------------------------------------------------------
+    // تنظیمات کاربر (اندازه پنجره و وضعیت نمودار)
+    // ---------------------------------------------------------------------
+
+    private void ApplyUserSettings()
+    {
+        var settings = _settingsStore.Load();
+
+        try
+        {
+            if (settings.WindowWidth >= MinimumSize.Width && settings.WindowHeight >= MinimumSize.Height)
+            {
+                Size = new Size(settings.WindowWidth, settings.WindowHeight);
+            }
+        }
+        catch (ArgumentOutOfRangeException ex)
+        {
+            AppLog.Error("اندازه ذخیره‌شده پنجره معتبر نبود.", ex);
+        }
+
+        _suppressChartCheck = true;
+        try
+        {
+            chkShowChart.Checked = settings.ShowChart;
+
+            if (cmbChartRange.Items.Count > 0)
+            {
+                cmbChartRange.SelectedIndex = Math.Clamp(settings.ChartRangeIndex, 0, cmbChartRange.Items.Count - 1);
+            }
+        }
+        finally
+        {
+            _suppressChartCheck = false;
+        }
+
+        if (settings.IsMaximized)
+        {
+            WindowState = FormWindowState.Maximized;
+        }
+    }
+
+    private void SaveUserSettings()
+    {
+        var bounds = WindowState == FormWindowState.Normal ? Bounds : RestoreBounds;
+
+        var settings = new UserSettings
+        {
+            WindowWidth = bounds.Width,
+            WindowHeight = bounds.Height,
+            IsMaximized = WindowState == FormWindowState.Maximized,
+            ShowChart = chkShowChart.Checked,
+            ChartRangeIndex = cmbChartRange.SelectedIndex < 0 ? (int)ChartRange.Last30Days : cmbChartRange.SelectedIndex
+        };
+
+        _settingsStore.Save(settings);
+    }
+
+    // ---------------------------------------------------------------------
     // فیلتر و جست‌وجو
     // ---------------------------------------------------------------------
 
@@ -322,24 +460,57 @@ public partial class MainForm : Form
         ApplyFilter();
         ApplyStatus(
             $"فیلتر اعمال شد — {_visibleRecords.Count} رکورد از {_records.Count} رکورد نمایش داده می‌شود",
-            StatusWarningColor);
+            StatusLevel.Warning);
     }
 
     private void btnResetFilter_Click(object? sender, EventArgs e)
     {
-        txtFilterText.Clear();
-        txtFilterValueFrom.Clear();
-        txtFilterValueTo.Clear();
-        dtpFilterFrom.Checked = false;
-        dtpFilterTo.Checked = false;
-
-        if (cmbFilterSensor.Items.Count > 0)
+        _isInitializing = true;
+        try
         {
-            cmbFilterSensor.SelectedIndex = 0;
+            txtFilterText.Clear();
+            txtFilterValueFrom.Clear();
+            txtFilterValueTo.Clear();
+            dtpFilterFrom.Checked = false;
+            dtpFilterTo.Checked = false;
+
+            if (cmbFilterSensor.Items.Count > 0)
+            {
+                cmbFilterSensor.SelectedIndex = 0;
+            }
+        }
+        finally
+        {
+            _isInitializing = false;
         }
 
         ApplyFilter();
-        ApplyStatus($"ذخیره‌سازی محلی (JSON) آماده است — {_records.Count} رکورد", StatusReadyColor);
+        ApplyStatus($"ذخیره‌سازی محلی (JSON) آماده است — {_records.Count} رکورد", StatusLevel.Success);
+    }
+
+    /// <summary>شروع تایمر کوتاه پس از هر تغییر در فیلترها (فیلتر خودکار با تأخیر).</summary>
+    private void FilterInput_Changed(object? sender, EventArgs e)
+    {
+        if (_isInitializing)
+        {
+            return;
+        }
+
+        tmrFilterDebounce.Stop();
+        tmrFilterDebounce.Start();
+    }
+
+    private void tmrFilterDebounce_Tick(object? sender, EventArgs e)
+    {
+        tmrFilterDebounce.Stop();
+
+        // در حالت خودکار، ورودی نامعتبر نادیده گرفته می‌شود تا پنجره خطا باز نشود
+        if (!ValidateFilterValueInputs(showMessage: false))
+        {
+            return;
+        }
+
+        ApplyFilter();
     }
 
     private void txtFilterText_KeyDown(object? sender, KeyEventArgs e)
@@ -353,21 +524,30 @@ public partial class MainForm : Form
     }
 
     /// <summary>بررسی عددی بودن بازه مقدار در فیلترها.</summary>
-    private bool ValidateFilterValueInputs()
+    /// <param name="showMessage">آیا در صورت خطا پنجره پیام نمایش داده شود؟</param>
+    private bool ValidateFilterValueInputs(bool showMessage = true)
     {
         if (txtFilterValueFrom.TextLength > 0 && !NumberTextParser.TryParse(txtFilterValueFrom.Text, out _))
         {
-            ShowMessage("مقدار «از» در فیلتر عدد معتبری نیست.", "فیلتر", MessageBoxIcon.Warning);
-            txtFilterValueFrom.Focus();
-            txtFilterValueFrom.SelectAll();
+            if (showMessage)
+            {
+                ShowMessage("مقدار «از» در فیلتر عدد معتبری نیست.", "فیلتر", MessageBoxIcon.Warning);
+                txtFilterValueFrom.Focus();
+                txtFilterValueFrom.SelectAll();
+            }
+
             return false;
         }
 
         if (txtFilterValueTo.TextLength > 0 && !NumberTextParser.TryParse(txtFilterValueTo.Text, out _))
         {
-            ShowMessage("مقدار «تا» در فیلتر عدد معتبری نیست.", "فیلتر", MessageBoxIcon.Warning);
-            txtFilterValueTo.Focus();
-            txtFilterValueTo.SelectAll();
+            if (showMessage)
+            {
+                ShowMessage("مقدار «تا» در فیلتر عدد معتبری نیست.", "فیلتر", MessageBoxIcon.Warning);
+                txtFilterValueTo.Focus();
+                txtFilterValueTo.SelectAll();
+            }
+
             return false;
         }
 
@@ -375,22 +555,30 @@ public partial class MainForm : Form
             NumberTextParser.TryParse(txtFilterValueTo.Text, out var to) &&
             from > to)
         {
-            ShowMessage("مقدار «از» نباید بزرگ‌تر از مقدار «تا» باشد.", "فیلتر", MessageBoxIcon.Warning);
-            txtFilterValueFrom.Focus();
+            if (showMessage)
+            {
+                ShowMessage("مقدار «از» نباید بزرگ‌تر از مقدار «تا» باشد.", "فیلتر", MessageBoxIcon.Warning);
+                txtFilterValueFrom.Focus();
+            }
+
             return false;
         }
 
         if (dtpFilterFrom.Checked && dtpFilterTo.Checked && dtpFilterFrom.Value.Date > dtpFilterTo.Value.Date)
         {
-            ShowMessage("تاریخ شروع نباید بعد از تاریخ پایان باشد.", "فیلتر", MessageBoxIcon.Warning);
-            dtpFilterFrom.Focus();
+            if (showMessage)
+            {
+                ShowMessage("تاریخ شروع نباید بعد از تاریخ پایان باشد.", "فیلتر", MessageBoxIcon.Warning);
+                dtpFilterFrom.Focus();
+            }
+
             return false;
         }
 
         return true;
     }
 
-    /// <summary>اعمال فیلترهای فعلی روی رکوردهای خوانده‌شده و نمایش نتیجه در جدول.</summary>
+    /// <summary>اعمال فیلترهای فعلی روی رکوردهای خوانده‌شده، مرتب‌سازی و نمایش نتیجه در جدول.</summary>
     private void ApplyFilter()
     {
         IEnumerable<SensorData> query = _records;
@@ -429,7 +617,14 @@ public partial class MainForm : Form
             query = query.Where(record => record.RecordDate < toDate);
         }
 
-        _visibleRecords = query.ToList();
+        var filtered = query.ToList();
+
+        if (_sortColumn is not null)
+        {
+            filtered = RecordSorter.Sort(filtered, _sortColumn.Value, _sortAscending).ToList();
+        }
+
+        _visibleRecords = filtered;
 
         dgvSensorData.DataSource = null;
         dgvSensorData.DataSource = new List<SensorData>(_visibleRecords);
@@ -447,6 +642,47 @@ public partial class MainForm : Form
                record.Id.ToString(CultureInfo.InvariantCulture).Contains(searchText, StringComparison.Ordinal) ||
                record.Value.ToString("0.####", CultureInfo.InvariantCulture)
                    .Contains(searchText, StringComparison.OrdinalIgnoreCase);
+    }
+
+    // ---------------------------------------------------------------------
+    // مرتب‌سازی جدول
+    // ---------------------------------------------------------------------
+
+    private void dgvSensorData_ColumnHeaderMouseClick(object? sender, DataGridViewCellMouseEventArgs e)
+    {
+        if (e.ColumnIndex < 0 || e.ColumnIndex >= BaseColumnHeaders.Length)
+        {
+            return;
+        }
+
+        var column = (RecordSortColumn)e.ColumnIndex;
+
+        _sortAscending = RecordSorter.NextAscending(_sortColumn, _sortAscending, column);
+        _sortColumn = column;
+
+        UpdateSortGlyphs();
+        ApplyFilter();
+
+        ApplyStatus(
+            $"مرتب‌سازی بر اساس «{BaseColumnHeaders[e.ColumnIndex]}» — " +
+            (_sortAscending ? "صعودی" : "نزولی"),
+            StatusLevel.Neutral);
+    }
+
+    private void UpdateSortGlyphs()
+    {
+        for (var index = 0; index < dgvSensorData.ColumnCount && index < BaseColumnHeaders.Length; index++)
+        {
+            var isActive = _sortColumn is not null && (int)_sortColumn.Value == index;
+            dgvSensorData.Columns[index].HeaderText = isActive
+                ? BaseColumnHeaders[index] + RecordSorter.DirectionGlyph(_sortAscending)
+                : BaseColumnHeaders[index];
+        }
+    }
+
+    private void dgvSensorData_DataBindingComplete(object? sender, DataGridViewBindingCompleteEventArgs e)
+    {
+        UpdateSelectionButtons();
     }
 
     // ---------------------------------------------------------------------
@@ -476,7 +712,20 @@ public partial class MainForm : Form
 
     private async Task EditSelectedRecordAsync()
     {
-        var record = GetSelectedRecord();
+        var selected = GetSelectedRecords();
+
+        if (selected.Count > 1)
+        {
+            ShowMessage(
+                "برای ویرایش، فقط یک ردیف را انتخاب کنید." + Environment.NewLine +
+                "برای حذف گروهی می‌توانید چند ردیف را با Ctrl انتخاب کنید.",
+                "ویرایش رکورد",
+                MessageBoxIcon.Information);
+            return;
+        }
+
+        var record = selected.FirstOrDefault();
+
         if (record is null)
         {
             ShowMessage("برای ویرایش، ابتدا یک ردیف از جدول را انتخاب کنید.", "ویرایش رکورد", MessageBoxIcon.Information);
@@ -512,18 +761,22 @@ public partial class MainForm : Form
 
     private async void btnDeleteRecord_Click(object? sender, EventArgs e)
     {
-        var record = GetSelectedRecord();
-        if (record is null)
+        var records = GetSelectedRecords();
+
+        if (records.Count == 0)
         {
-            ShowMessage("برای حذف، ابتدا یک ردیف از جدول را انتخاب کنید.", "حذف رکورد", MessageBoxIcon.Information);
+            ShowMessage("برای حذف، ابتدا ردیف(های) مورد نظر را انتخاب کنید.", "حذف رکورد", MessageBoxIcon.Information);
             return;
         }
 
+        var question = records.Count == 1
+            ? $"رکورد شماره {records[0].Id} («{records[0].SensorName}» با مقدار {records[0].Value:N4} {records[0].Unit}) حذف شود؟"
+            : $"{records.Count} رکورد انتخاب‌شده حذف شوند؟";
+
         var answer = MessageBox.Show(
             this,
-            $"رکورد شماره {record.Id} («{record.SensorName}» با مقدار {record.Value:N4} {record.Unit}) حذف شود؟" +
-            Environment.NewLine + Environment.NewLine +
-            "این عملیات قابل بازگشت نیست؛ اما پیش از هر تغییر، یک نسخه پشتیبان در پوشه Backups ساخته می‌شود.",
+            question + Environment.NewLine + Environment.NewLine +
+            "پیش از هر تغییر یک نسخه پشتیبان ساخته می‌شود و می‌توانید حذف را با «بازگردانی حذف» (Ctrl+Z) برگردانید.",
             "حذف رکورد",
             MessageBoxButtons.YesNo,
             MessageBoxIcon.Warning,
@@ -535,10 +788,23 @@ public partial class MainForm : Form
             return;
         }
 
+        var deletedSnapshot = records.Select(record => new SensorData
+        {
+            Id = record.Id,
+            SensorName = record.SensorName,
+            Value = record.Value,
+            Unit = record.Unit,
+            RecordDate = record.RecordDate
+        }).ToList();
+
         SetBusy(true);
         try
         {
-            var result = await Task.Run(() => _store.DeleteSensorData(record.Id));
+            var ids = deletedSnapshot.Select(record => record.Id).ToList();
+
+            var result = await Task.Run<StorageResult>(() => ids.Count == 1
+                ? _store.DeleteSensorData(ids[0])
+                : (StorageResult)_store.DeleteSensorDataBatch(ids));
 
             if (!result.Success)
             {
@@ -547,7 +813,61 @@ public partial class MainForm : Form
                 return;
             }
 
-            ShowMessage(result.Message, "حذف موفق", MessageBoxIcon.Information);
+            _undoBuffer.Clear();
+            _undoBuffer.AddRange(deletedSnapshot);
+
+            ShowMessage(
+                result.Message + Environment.NewLine +
+                "برای بازگردانی این حذف از دکمه «بازگردانی حذف» یا Ctrl+Z استفاده کنید.",
+                "حذف موفق",
+                MessageBoxIcon.Information);
+
+            await LoadRecordsAsync();
+        }
+        finally
+        {
+            SetBusy(false);
+        }
+    }
+
+    private async void btnUndoDelete_Click(object? sender, EventArgs e)
+    {
+        if (_undoBuffer.Count == 0)
+        {
+            ShowMessage("حذف قابل بازگردانی وجود ندارد.", "بازگردانی حذف", MessageBoxIcon.Information);
+            return;
+        }
+
+        var items = _undoBuffer
+            .Select(record => new SensorData
+            {
+                SensorName = record.SensorName,
+                Value = record.Value,
+                Unit = record.Unit,
+                RecordDate = record.RecordDate
+            })
+            .ToList();
+
+        SetBusy(true);
+        try
+        {
+            var result = await Task.Run(() => _store.InsertSensorDataBatch(items));
+
+            if (!result.Success)
+            {
+                AppLog.Error("بازگردانی حذف ناموفق بود: " + result.Message, result.Error);
+                ShowMessage(result.Message, "خطا در بازگردانی", MessageBoxIcon.Error);
+                return;
+            }
+
+            _undoBuffer.Clear();
+
+            ShowMessage(
+                $"{items.Count} رکورد بازگردانی شد." + Environment.NewLine +
+                "شناسه رکوردهای بازگردانی‌شده جدید است؛ مقدار و تاریخ ثبت تغییر نکرده‌اند.",
+                "بازگردانی حذف",
+                MessageBoxIcon.Information);
+
             await LoadRecordsAsync();
         }
         finally
@@ -599,7 +919,7 @@ public partial class MainForm : Form
                 "خروجی CSV",
                 MessageBoxIcon.Information);
 
-            ApplyStatus($"خروجی CSV با {records.Count} رکورد ذخیره شد", StatusReadyColor);
+            ApplyStatus($"خروجی CSV با {records.Count} رکورد ذخیره شد", StatusLevel.Success);
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
         {
@@ -699,6 +1019,124 @@ public partial class MainForm : Form
     }
 
     // ---------------------------------------------------------------------
+    // سلامت داده و بازگردانی نسخه پشتیبان
+    // ---------------------------------------------------------------------
+
+    private async void btnRestoreBackup_Click(object? sender, EventArgs e)
+    {
+        using var restoreForm = new RestoreBackupForm(_store);
+
+        if (restoreForm.ShowDialog(this) != DialogResult.OK)
+        {
+            return;
+        }
+
+        _undoBuffer.Clear();
+
+        await LoadRecordsAsync();
+        ApplyStatus(restoreForm.ResultMessage, StatusLevel.Warning);
+
+        ShowMessage(
+            restoreForm.ResultMessage + Environment.NewLine +
+            "فهرست رکوردها به‌روزرسانی شد.",
+            "بازگردانی نسخه پشتیبان",
+            MessageBoxIcon.Information);
+    }
+
+    private async void btnDataHealth_Click(object? sender, EventArgs e)
+    {
+        SetBusy(true);
+        ApplyStatus("در حال بررسی سلامت فایل داده...", StatusLevel.Warning);
+
+        try
+        {
+            var report = await Task.Run(() => _store.RepairStorage());
+
+            if (report.Success && report.RemovedCount > 0)
+            {
+                await LoadRecordsAsync();
+            }
+
+            ApplyStatus(
+                report.Message,
+                report.Success
+                    ? report.RemovedCount > 0 ? StatusLevel.Warning : StatusLevel.Success
+                    : StatusLevel.Error);
+
+            ShowMessage(
+                report.Message + Environment.NewLine + Environment.NewLine +
+                (report.Success
+                    ? "بررسی سلامت فایل داده به پایان رسید."
+                    : "اگر مشکل ادامه داشت، از «بازگردانی نسخه پشتیبان» استفاده کنید."),
+                "بررسی سلامت داده",
+                report.Success ? MessageBoxIcon.Information : MessageBoxIcon.Warning);
+        }
+        finally
+        {
+            SetBusy(false);
+        }
+    }
+
+    // ---------------------------------------------------------------------
+    // گزارش هشدارها و تصویر نمودار
+    // ---------------------------------------------------------------------
+
+    private void btnAlarmReport_Click(object? sender, EventArgs e)
+    {
+        using var form = new AlarmReportForm(_visibleRecords, _store.DataDirectory);
+        form.ShowDialog(this);
+
+        if (form.Exported)
+        {
+            ApplyStatus("گزارش هشدارها به‌صورت CSV ذخیره شد", StatusLevel.Success);
+        }
+    }
+
+    private void btnChartPng_Click(object? sender, EventArgs e)
+    {
+        using var dialog = new SaveFileDialog
+        {
+            Title = "ذخیره تصویر نمودار",
+            Filter = "تصویر PNG (*.png)|*.png",
+            DefaultExt = "png",
+            AddExtension = true,
+            OverwritePrompt = true,
+            FileName = $"chart-{PersianDateFormatter.FormatForFileName(DateTime.Now)}.png"
+        };
+
+        try
+        {
+            Directory.CreateDirectory(_store.DataDirectory);
+            dialog.InitialDirectory = _store.DataDirectory;
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            AppLog.Error("تعیین پوشه پیش‌فرض تصویر نمودار ناموفق بود.", ex);
+        }
+
+        if (dialog.ShowDialog(this) != DialogResult.OK)
+        {
+            return;
+        }
+
+        try
+        {
+            pnlChart.SavePng(dialog.FileName);
+            ApplyStatus("تصویر نمودار ذخیره شد", StatusLevel.Success);
+
+            ShowMessage(
+                $"تصویر نمودار در فایل زیر ذخیره شد:{Environment.NewLine}{dialog.FileName}",
+                "تصویر نمودار",
+                MessageBoxIcon.Information);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ExternalException)
+        {
+            AppLog.Error("ذخیره تصویر نمودار ناموفق بود.", ex);
+            ShowMessage("ذخیره تصویر نمودار ممکن نشد. مسیر و دسترسی نوشتن را بررسی کنید.", "خطا در ذخیره تصویر", MessageBoxIcon.Error);
+        }
+    }
+
+    // ---------------------------------------------------------------------
     // پایش زنده (شبیه‌سازی)
     // ---------------------------------------------------------------------
 
@@ -734,7 +1172,7 @@ public partial class MainForm : Form
         miStartMonitoring.Enabled = false;
         miStopMonitoring.Enabled = true;
 
-        ApplyStatus("پایش زنده فعال است — هر ۲ ثانیه یک رکورد شبیه‌سازی‌شده ثبت می‌شود", StatusWarningColor);
+        ApplyStatus("پایش زنده فعال است — هر ۲ ثانیه یک رکورد شبیه‌سازی‌شده ثبت می‌شود", StatusLevel.Warning);
     }
 
     private void StopLiveMonitoring()
@@ -749,7 +1187,7 @@ public partial class MainForm : Form
         miStartMonitoring.Enabled = true;
         miStopMonitoring.Enabled = false;
 
-        ApplyStatus($"پایش زنده متوقف شد — {_records.Count} رکورد", StatusReadyColor);
+        ApplyStatus($"پایش زنده متوقف شد — {_records.Count} رکورد", StatusLevel.Success);
     }
 
     private async void tmrSimulation_Tick(object? sender, EventArgs e)
@@ -814,7 +1252,7 @@ public partial class MainForm : Form
     private async Task PrepareStorageAsync()
     {
         SetBusy(true);
-        ApplyStatus("در حال بررسی فایل داده...", StatusWarningColor);
+        ApplyStatus("در حال بررسی فایل داده...", StatusLevel.Warning);
 
         try
         {
@@ -822,7 +1260,7 @@ public partial class MainForm : Form
 
             if (!report.IsReady)
             {
-                ApplyStatus("فایل داده در دسترس نیست", StatusErrorColor);
+                ApplyStatus("فایل داده در دسترس نیست", StatusLevel.Error);
                 ClearRecords();
                 ShowMessage(
                     report.Message + Environment.NewLine + Environment.NewLine +
@@ -839,7 +1277,7 @@ public partial class MainForm : Form
 
             ApplyStatus(
                 $"ذخیره‌سازی محلی (JSON) آماده است — {report.RecordCount} رکورد",
-                StatusReadyColor);
+                StatusLevel.Success);
 
             if (report.HasChanged)
             {
@@ -849,7 +1287,7 @@ public partial class MainForm : Form
         catch (Exception ex)
         {
             AppLog.Error("بررسی فایل داده با خطای غیرمنتظره مواجه شد.", ex);
-            ApplyStatus("بررسی فایل داده با خطا مواجه شد.", StatusErrorColor);
+            ApplyStatus("بررسی فایل داده با خطا مواجه شد.", StatusLevel.Error);
             ClearRecords();
         }
         finally
@@ -876,7 +1314,7 @@ public partial class MainForm : Form
             _records = result.Value ?? Array.Empty<SensorData>();
             ApplyFilter();
 
-            ApplyStatus($"{_records.Count} رکورد خوانده شد", StatusReadyColor);
+            ApplyStatus($"{_records.Count} رکورد خوانده شد", StatusLevel.Success);
         }
         finally
         {
@@ -924,39 +1362,71 @@ public partial class MainForm : Form
         _visibleRecords = Array.Empty<SensorData>();
 
         dgvSensorData.DataSource = null;
-        grpRecords.Text = "اطلاعات ثبت‌شده";
-        pnlChart.SetData(Array.Empty<SensorChartPoint>(), string.Empty);
+        pnlChart.SetSeries(Array.Empty<SensorChartSeries>());
+        lblChartStats.Text = string.Empty;
 
         UpdateRecordsSummary();
         UpdateSelectionButtons();
     }
 
-    /// <summary>به‌روزرسانی عنوان جدول و شمارنده‌های نوار وضعیت.</summary>
+    /// <summary>به‌روزرسانی عنوان کارت‌ها، شمارنده‌ها و آماره‌های نوار وضعیت.</summary>
     private void UpdateRecordsSummary()
     {
-        grpRecords.Text = _visibleRecords.Count == _records.Count
+        grpRecords.Title = _visibleRecords.Count == _records.Count
             ? $"اطلاعات ثبت‌شده ({_records.Count} رکورد)"
             : $"اطلاعات ثبت‌شده ({_visibleRecords.Count} از {_records.Count} رکورد)";
 
-        lblStatusCount.Text = $"تعداد رکوردها: {_records.Count}";
+        var unit = _visibleRecords.Count > 0 ? _visibleRecords[0].Unit : string.Empty;
+        var stats = ValueStatistics.FromRecords(_visibleRecords);
+
+        grpRecords.Hint = stats.HasValues ? stats.Describe(unit) : string.Empty;
+        lblStatusCount.Text = $"نمایش {_visibleRecords.Count} از {_records.Count}";
+        lblStatusStats.Text = stats.HasValues ? stats.Describe(unit) : string.Empty;
+        lblFilterResult.Text = _visibleRecords.Count == _records.Count
+            ? string.Empty
+            : $"{_visibleRecords.Count} رکورد از {_records.Count}";
+
+        UpdateRecordsHint();
     }
 
-    /// <summary>نمایش وضعیت ذخیره‌سازی در سربرگ و نوار وضعیت.</summary>
-    private void ApplyStatus(string message, Color color)
+    /// <summary>متن راهنمای نوار ابزار جدول؛ در حالت خالی، پیام مناسب نمایش داده می‌شود.</summary>
+    private void UpdateRecordsHint()
     {
-        lblStatus.Text = message;
-        lblStatus.ForeColor = color;
-        lblStatusStrip.Text = message;
-        lblStatusStrip.ForeColor = color;
+        lblRecordsHint.Text = _records.Count switch
+        {
+            0 => "فایل داده هنوز رکوردی ندارد؛ اولین قرائت را ثبت کنید.",
+            _ when _visibleRecords.Count == 0 => "رکوردی مطابق فیلتر پیدا نشد؛ فیلترها را پاک کنید.",
+            _ => "برای ویرایش روی ردیف دوبار کلیک کنید؛ با Ctrl چند ردیف را انتخاب کنید."
+        };
     }
 
-    /// <summary>مقدارهای ثابت نوار وضعیت: مسیر فایل داده و شماره نسخه.</summary>
+    /// <summary>نمایش وضعیت در سربرگ و نوار وضعیت.</summary>
+    private void ApplyStatus(string message, StatusLevel level)
+    {
+        hdrMain.StatusText = message;
+        hdrMain.StatusLevel = level;
+
+        lblStatusStrip.Text = message;
+        lblStatusStrip.ForeColor = level switch
+        {
+            StatusLevel.Success => AppTheme.Success,
+            StatusLevel.Warning => AppTheme.Warning,
+            StatusLevel.Error => AppTheme.Danger,
+            _ => AppTheme.TextPrimary
+        };
+    }
+
+    /// <summary>مقدارهای ثابت سربرگ و نوار وضعیت: مسیر فایل داده و شماره نسخه.</summary>
     private void UpdateStatusBarValues()
     {
         lblStatusCount.Text = "تعداد رکوردها: ۰";
         lblStatusPath.Text = _store.DataFilePath;
         lblStatusPath.ToolTipText = _store.DataFilePath;
-        lblStatusVersion.Text = $"نسخه {GetApplicationVersion()}";
+
+        var version = GetApplicationVersion();
+        lblStatusVersion.Text = $"نسخه {version}";
+        hdrMain.BadgeText = $"v{version}";
+        lblStatusVersion.ToolTipText = "برای دیدن جزئیات نسخه، F1 را بزنید.";
     }
 
     /// <summary>شماره نسخه برنامه از مشخصات اسمبلی (Major.Minor.Patch).</summary>
@@ -966,9 +1436,31 @@ public partial class MainForm : Form
         return $"{version.Major}.{version.Minor}.{version.Build}";
     }
 
-    /// <summary>نمایش/پنهان کردن بخش نمودار و تنظیم ارتفاع سطر آن.</summary>
-    private void chkShowChart_CheckedChanged(object? sender, EventArgs e) => ApplyChartVisibility();
+    // ---------------------------------------------------------------------
+    // نمودار
+    // ---------------------------------------------------------------------
 
+    private void chkShowChart_CheckedChanged(object? sender, EventArgs e)
+    {
+        if (_suppressChartCheck)
+        {
+            return;
+        }
+
+        ApplyChartVisibility();
+    }
+
+    private void cmbChartRange_SelectedIndexChanged(object? sender, EventArgs e)
+    {
+        if (_isInitializing)
+        {
+            return;
+        }
+
+        UpdateChart();
+    }
+
+    /// <summary>نمایش/پنهان کردن بخش نمودار و تنظیم ارتفاع سطر آن.</summary>
     private void ApplyChartVisibility()
     {
         var isVisible = chkShowChart.Checked;
@@ -976,9 +1468,14 @@ public partial class MainForm : Form
         grpChart.Visible = isVisible;
         tlpRoot.RowStyles[4].Height = isVisible && _chartRowHeight > 0 ? _chartRowHeight : 0F;
         tlpRoot.PerformLayout();
+
+        if (isVisible)
+        {
+            UpdateChart();
+        }
     }
 
-    /// <summary>رسم مجدد نمودار برای سنسور انتخاب‌شده (یا سنسور پیش‌فرض).</summary>
+    /// <summary>رسم مجدد نمودار برای سنسور(های) انتخاب‌شده، فیلترشده یا همه سنسورها.</summary>
     private void UpdateChart()
     {
         if (!chkShowChart.Checked)
@@ -986,47 +1483,123 @@ public partial class MainForm : Form
             return;
         }
 
-        var selectedRecord = GetSelectedRecord();
-        var sensorName = selectedRecord?.SensorName;
+        var names = GetChartSensorNames();
+        var range = GetSelectedChartRange();
+        var series = ChartSeriesBuilder.BuildSeries(_visibleRecords, names, range, DateTime.Now);
 
-        if (string.IsNullOrEmpty(sensorName))
+        pnlChart.SetSeries(series);
+
+        var rangeTitle = ChartSeriesBuilder.Describe(range);
+
+        grpChart.Title = series.Count switch
         {
-            sensorName = cmbFilterSensor.SelectedIndex > 0
-                ? cmbFilterSensor.SelectedItem as string
-                : SensorCatalog.DefaultSensorName;
-        }
+            0 => $"نمودار مقادیر — {rangeTitle} — داده‌ای برای نمایش نیست",
+            1 => $"نمودار «{series[0].SensorName}» — {rangeTitle} — {series[0].Points.Count} نقطه",
+            _ => $"نمودار {series.Count} سنسور — {rangeTitle}"
+        };
 
-        var points = SensorChartData.Build(_visibleRecords, sensorName);
-        var unit = _visibleRecords
-            .LastOrDefault(record => string.Equals(record.SensorName, sensorName, StringComparison.Ordinal))
-            ?.Unit ?? SensorCatalog.GetDefaultUnit(sensorName);
+        var unit = series.Count > 0 ? series[0].Unit : string.Empty;
+        var stats = ValueStatistics.FromRecords(
+            _visibleRecords.Where(record => names.Contains(record.SensorName, StringComparer.Ordinal)));
 
-        pnlChart.SetData(points, unit);
+        grpChart.Hint = series.Count > 0
+            ? $"{series.Sum(item => item.Points.Count)} نقطه"
+            : string.Empty;
 
-        grpChart.Text = points.Count == 0
-            ? $"نمودار مقادیر «{sensorName}» — داده‌ای برای نمایش نیست"
-            : $"نمودار مقادیر «{sensorName}» — آخرین {points.Count} مقدار";
+        lblChartStats.Text = series.Count == 0
+            ? string.Empty
+            : stats.Describe(unit);
+
+        tipMain.SetToolTip(lblChartStats, BuildPerSensorStatisticsText(names));
     }
 
-    /// <summary>فعال/غیرفعال کردن دکمه‌های ویرایش و حذف بر اساس انتخاب فعلی جدول.</summary>
+    /// <summary>متن آماره هر سنسور برای Tooltip کارت نمودار.</summary>
+    private string BuildPerSensorStatisticsText(IReadOnlyList<string> names)
+    {
+        var lines = SensorStatisticsCalculator
+            .Calculate(_visibleRecords.Where(record => names.Contains(record.SensorName, StringComparer.Ordinal)))
+            .Select(item => $"• {item.SensorName}: {item.Stats.Describe(item.Unit)}")
+            .ToList();
+
+        return lines.Count == 0
+            ? "داده‌ای برای محاسبه آماره نیست."
+            : string.Join(Environment.NewLine, lines);
+    }
+
+    private IReadOnlyList<string> GetChartSensorNames()
+    {
+        var selected = GetSelectedRecords();
+
+        if (selected.Count > 0)
+        {
+            return selected
+                .Select(record => record.SensorName)
+                .Distinct(StringComparer.Ordinal)
+                .ToList();
+        }
+
+        if (cmbFilterSensor.SelectedIndex > 0 && cmbFilterSensor.SelectedItem is string filtered)
+        {
+            return new[] { filtered };
+        }
+
+        return SensorCatalog.Names.ToList();
+    }
+
+    private ChartRange GetSelectedChartRange()
+    {
+        var index = cmbChartRange.SelectedIndex;
+
+        return index switch
+        {
+            0 => ChartRange.Last24Hours,
+            1 => ChartRange.Last7Days,
+            2 => ChartRange.Last30Days,
+            _ => ChartRange.All
+        };
+    }
+
+    // ---------------------------------------------------------------------
+    // انتخاب ردیف‌ها
+    // ---------------------------------------------------------------------
+
+    /// <summary>فعال/غیرفعال کردن دکمه‌های ویرایش، حذف و بازگردانی بر اساس انتخاب فعلی جدول.</summary>
     private void UpdateSelectionButtons()
     {
-        var hasSelection = GetSelectedRecord() is not null;
+        var selectedCount = GetSelectedRecords().Count;
+        var hasUndo = _undoBuffer.Count > 0;
 
-        btnEditRecord.Enabled = hasSelection;
-        btnDeleteRecord.Enabled = hasSelection;
-        miEditRecord.Enabled = hasSelection;
-        miDeleteRecord.Enabled = hasSelection;
+        btnEditRecord.Enabled = selectedCount == 1;
+        miEditRecord.Enabled = selectedCount == 1;
+
+        btnDeleteRecord.Enabled = selectedCount > 0;
+        miDeleteRecord.Enabled = selectedCount > 0;
+        btnDeleteRecord.Text = selectedCount > 1 ? $"حذف {selectedCount} رکورد" : "حذف انتخاب‌شده";
+
+        btnUndoDelete.Enabled = hasUndo;
+        miUndoDelete.Enabled = hasUndo;
+        btnUndoDelete.Text = hasUndo ? $"بازگردانی {_undoBuffer.Count} حذف" : "بازگردانی حذف";
     }
 
-    private SensorData? GetSelectedRecord()
+    /// <summary>رکوردهای انتخاب‌شده در جدول (در صورت نبود انتخاب، ردیف جاری).</summary>
+    private List<SensorData> GetSelectedRecords()
     {
-        if (dgvSensorData.CurrentRow is null)
+        var selected = new List<SensorData>();
+
+        foreach (DataGridViewRow row in dgvSensorData.SelectedRows)
         {
-            return null;
+            if (row.DataBoundItem is SensorData record)
+            {
+                selected.Add(record);
+            }
         }
 
-        return dgvSensorData.CurrentRow.DataBoundItem as SensorData;
+        if (selected.Count == 0 && dgvSensorData.CurrentRow?.DataBoundItem is SensorData current)
+        {
+            selected.Add(current);
+        }
+
+        return selected;
     }
 
     /// <summary>قفل کردن کنترل‌ها هنگام انجام عملیات فایل.</summary>
@@ -1040,8 +1613,12 @@ public partial class MainForm : Form
         btnOpenDataFolder.Enabled = !isBusy;
         btnExportCsv.Enabled = !isBusy;
         btnImportCsv.Enabled = !isBusy;
+        btnRestoreBackup.Enabled = !isBusy;
+        btnDataHealth.Enabled = !isBusy;
         btnApplyFilter.Enabled = !isBusy;
         btnResetFilter.Enabled = !isBusy;
+        btnChartPng.Enabled = !isBusy;
+        btnAlarmReport.Enabled = !isBusy;
         cmbSensorName.Enabled = !isBusy;
         nudSensorValue.Enabled = !isBusy;
         txtUnit.Enabled = !isBusy;
@@ -1049,6 +1626,13 @@ public partial class MainForm : Form
         miRefresh.Enabled = !isBusy;
         miExportCsv.Enabled = !isBusy;
         miImportCsv.Enabled = !isBusy;
+        miRestoreBackup.Enabled = !isBusy;
+        miDataHealth.Enabled = !isBusy;
+
+        if (!isBusy)
+        {
+            UpdateSelectionButtons();
+        }
     }
 
     /// <summary>قرار دادن Focus روی فیلد دارای خطا.</summary>
@@ -1084,7 +1668,7 @@ public partial class MainForm : Form
             MessageBoxOptions.RtlReading | MessageBoxOptions.RightAlign);
     }
 
-    /// <summary>رسم قالب هر سلول جدول: تاریخ شمسی و رنگ‌بندی مقدارهای خارج از محدوده.</summary>
+    /// <summary>رسم قالب هر سلول جدول: تاریخ شمسی و رنگ‌بندی هشدارها.</summary>
     private void dgvSensorData_CellFormatting(object? sender, DataGridViewCellFormattingEventArgs e)
     {
         if (e.RowIndex < 0 || e.RowIndex >= _visibleRecords.Count)
@@ -1098,18 +1682,23 @@ public partial class MainForm : Form
         {
             e.Value = PersianDateFormatter.Format(record.RecordDate);
             e.FormattingApplied = true;
-            return;
         }
 
-        if (SensorCatalog.IsWithinRange(record.SensorName, record.Value))
+        var level = AlarmDetector.Evaluate(record);
+
+        if (level == AlarmLevel.Critical)
         {
-            return;
+            e.CellStyle.BackColor = AppTheme.DangerSoft;
+            e.CellStyle.ForeColor = AppTheme.Danger;
+            e.CellStyle.SelectionBackColor = Color.FromArgb(252, 165, 165);
+            e.CellStyle.SelectionForeColor = Color.FromArgb(69, 10, 10);
         }
-
-        // مقدار خارج از محدوده معمول سنسور: نمایش با پس‌زمینه قرمز کم‌رنگ
-        e.CellStyle.BackColor = Color.FromArgb(254, 226, 226);
-        e.CellStyle.ForeColor = Color.FromArgb(153, 27, 27);
-        e.CellStyle.SelectionBackColor = Color.FromArgb(252, 165, 165);
-        e.CellStyle.SelectionForeColor = Color.FromArgb(69, 10, 10);
+        else if (level == AlarmLevel.Warning)
+        {
+            e.CellStyle.BackColor = AppTheme.WarningSoft;
+            e.CellStyle.ForeColor = AppTheme.Warning;
+            e.CellStyle.SelectionBackColor = Color.FromArgb(253, 230, 138);
+            e.CellStyle.SelectionForeColor = Color.FromArgb(120, 53, 15);
+        }
     }
 }

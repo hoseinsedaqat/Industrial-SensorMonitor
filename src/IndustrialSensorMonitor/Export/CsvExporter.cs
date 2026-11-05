@@ -1,5 +1,6 @@
 using System.Globalization;
 using System.Text;
+using IndustrialSensorMonitor.Analysis;
 using IndustrialSensorMonitor.Formatting;
 using IndustrialSensorMonitor.Models;
 
@@ -49,6 +50,54 @@ public static class CsvExporter
         }
 
         return builder.ToString();
+    }
+
+    /// <summary>ستون‌های خروجی گزارش هشدارها.</summary>
+    private static readonly string[] AlarmHeaders =
+    [
+        "شناسه رکورد",
+        "نام سنسور",
+        "مقدار سنسور",
+        "واحد اندازه‌گیری",
+        "سطح هشدار",
+        "توضیح",
+        "تاریخ و ساعت ثبت (شمسی)",
+        "تاریخ و ساعت ثبت (میلادی)"
+    ];
+
+    /// <summary>ساخت متن CSV گزارش هشدارها.</summary>
+    public static string BuildAlarmCsv(IEnumerable<AlarmEntry> alarms)
+    {
+        ArgumentNullException.ThrowIfNull(alarms);
+
+        var builder = new StringBuilder();
+        builder.AppendLine(string.Join(',', AlarmHeaders.Select(Escape)));
+
+        foreach (var alarm in alarms)
+        {
+            var values = new[]
+            {
+                alarm.RecordId.ToString(CultureInfo.InvariantCulture),
+                alarm.SensorName,
+                alarm.Value.ToString("0.0000", CultureInfo.InvariantCulture),
+                alarm.Unit,
+                AlarmDetector.DescribeLevel(alarm.Level),
+                alarm.Description,
+                PersianDateFormatter.Format(alarm.RecordDate),
+                alarm.RecordDate.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture)
+            };
+
+            builder.AppendLine(string.Join(',', values.Select(Escape)));
+        }
+
+        return builder.ToString();
+    }
+
+    /// <summary>ذخیره گزارش هشدارها در فایل CSV.</summary>
+    public static void WriteAlarmsToFile(string filePath, IEnumerable<AlarmEntry> alarms)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(filePath);
+        File.WriteAllText(filePath, BuildAlarmCsv(alarms), FileEncoding);
     }
 
     /// <summary>ذخیره خروجی CSV در مسیر داده‌شده.</summary>
