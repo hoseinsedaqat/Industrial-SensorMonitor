@@ -143,7 +143,11 @@ public sealed class SensorDataStoreCrudTests : IDisposable
 
         var records = store.GetSensorData().Value!;
         Assert.Equal(initialCount + 3, records.Count);
-        Assert.Equal(3, records.Select(record => record.Id).Distinct().Count());
+
+        // سه شناسه تازه و یکتا برای رکوردهای افزوده‌شده ایجاد می‌شود
+        var newRecords = records.Where(record => record.Id > initialCount).ToList();
+        Assert.Equal(3, newRecords.Count);
+        Assert.Equal(3, newRecords.Select(record => record.Id).Distinct().Count());
         Assert.Contains(records, record => record.RecordDate == new DateTime(2026, 1, 2, 3, 4, 5));
         Assert.Contains(records, record => record.Unit == "%" && record.Value == 3m);
     }

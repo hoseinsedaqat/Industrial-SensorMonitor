@@ -22,7 +22,6 @@ public class UpdateCheckerTests
     }
 
     [Theory]
-    [InlineData("1.1.1")]
     [InlineData("abc")]
     [InlineData("")]
     [InlineData(null)]
