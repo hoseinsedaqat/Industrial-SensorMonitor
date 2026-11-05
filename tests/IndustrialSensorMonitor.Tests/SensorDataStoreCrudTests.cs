@@ -139,7 +139,7 @@ public sealed class SensorDataStoreCrudTests : IDisposable
         var result = store.InsertSensorDataBatch(items);
 
         Assert.True(result.Success);
-        Assert.Equal(3, result.Value);
+        Assert.Equal(3, result.Value.GetValueOrDefault());
 
         var records = store.GetSensorData().Value!;
         Assert.Equal(initialCount + 3, records.Count);

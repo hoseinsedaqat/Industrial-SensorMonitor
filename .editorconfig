@@ -38,4 +38,3 @@ dotnet_naming_style.underscore_camel_case.capitalization = camel_case
 # ---------- تحلیل کد ----------
 dotnet_diagnostic.CA1305.severity = suggestion
 dotnet_diagnostic.IDE0055.severity = suggestion
-generated_code = true
