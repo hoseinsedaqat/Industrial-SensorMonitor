@@ -148,7 +148,7 @@ jobs:
 
       - name: بارگذاری گزارش قالب‌بندی
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: format-report
           path: format-report.txt
@@ -263,7 +263,7 @@ jobs:
           Get-ChildItem dist | Format-Table Name, Length
 
       - name: بارگذاری Artifact فایل اجرایی
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: IndustrialSensorMonitor-EXE
           path: dist/IndustrialSensorMonitor.exe
@@ -271,7 +271,7 @@ jobs:
           retention-days: 30
 
       - name: بارگذاری Artifact فایل نصب
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: IndustrialSensorMonitor-Setup
           path: dist/IndustrialSensorMonitor-Setup-x64.exe
@@ -279,7 +279,7 @@ jobs:
           retention-days: 30
 
       - name: بارگذاری Artifact نسخه قابل حمل
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: IndustrialSensorMonitor-Portable
           path: dist/IndustrialSensorMonitor-Portable-x64.zip
@@ -288,7 +288,7 @@ jobs:
 
       - name: بارگذاری گزارش تست‌ها
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: test-results
           path: TestResults
