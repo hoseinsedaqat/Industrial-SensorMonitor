@@ -113,22 +113,38 @@ jobs:
       - name: بررسی قالب‌بندی کد (dotnet format)
         id: format
         # این بررسی مسدودکننده نیست تا یک اختلاف قالب‌بندی، انتشار نسخه را متوقف نکند؛
-        # نتیجه آن در خلاصه اجرا (Summary) و Artifact «format-report» قابل مشاهده است.
+        # نتیجه آن در خلاصه اجرا (Summary)، Annotationها و Artifact «format-report» دیده می‌شود.
         continue-on-error: true
         shell: pwsh
         run: |
           dotnet format ${{ env.SOLUTION_PATH }} --verify-no-changes --severity warn --no-restore *>&1 |
             Tee-Object -FilePath format-report.txt
           $exitCode = $LASTEXITCODE
+
+          '### بررسی قالب‌بندی کد' >> $env:GITHUB_STEP_SUMMARY
+
           if ($exitCode -eq 0) {
             Write-Host 'قالب‌بندی کد بدون مشکل است.'
-            '### بررسی قالب‌بندی کد' >> $env:GITHUB_STEP_SUMMARY
             '✅ `dotnet format --verify-no-changes` بدون خطا اجرا شد.' >> $env:GITHUB_STEP_SUMMARY
+            exit 0
           }
-          else {
-            Write-Host "::warning::بررسی قالب‌بندی مواردی پیدا کرد (کد خروج $exitCode)."
-            '### بررسی قالب‌بندی کد' >> $env:GITHUB_STEP_SUMMARY
-            '⚠️ `dotnet format --verify-no-changes` مواردی پیدا کرد؛ جزئیات در Artifact «format-report» است.' >> $env:GITHUB_STEP_SUMMARY
+
+          Write-Host "::warning::بررسی قالب‌بندی مواردی پیدا کرد (کد خروج $exitCode)."
+          '⚠️ `dotnet format --verify-no-changes` مواردی پیدا کرد؛ جزئیات در Annotationهای همین اجرا و Artifact «format-report» است.' >> $env:GITHUB_STEP_SUMMARY
+
+          $lines = Get-Content format-report.txt
+          $emitted = 0
+          foreach ($line in $lines) {
+            if ($emitted -ge 20) { break }
+            if ($line -match '^(?<file>[A-Za-z]:\\[^\(]+\.cs|/[^\(]+\.cs)\((?<line>\d+),(?<col>\d+)\):\s*(?:error|warning)\s*(?<rule>[A-Za-z0-9]+)?\s*:?\s*(?<msg>.+)$') {
+              Write-Host "::warning file=$($Matches['file']),line=$($Matches['line'])::$($Matches['rule']) :: $($Matches['msg'])"
+              $emitted++
+            }
+          }
+
+          if ($emitted -eq 0) {
+            $tail = $lines | Where-Object { $_.Trim().Length -gt 0 } | Select-Object -Last 12
+            foreach ($line in $tail) { Write-Host "::warning::$line" }
           }
 
       - name: بارگذاری گزارش قالب‌بندی
