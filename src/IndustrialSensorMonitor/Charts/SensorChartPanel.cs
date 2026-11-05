@@ -551,9 +551,9 @@ public sealed class SensorChartPanel : Control
         }
 
         using (var highlight = new SolidBrush(color))
-        using (var ring = new Pen(Color.White, 2F))
+        using (var ringBrush = new SolidBrush(Color.White))
         {
-            graphics.FillEllipse(ring, x - 6.5F, y - 6.5F, 13F, 13F);
+            graphics.FillEllipse(ringBrush, x - 6.5F, y - 6.5F, 13F, 13F);
             graphics.FillEllipse(highlight, x - 4.5F, y - 4.5F, 9F, 9F);
         }
 
