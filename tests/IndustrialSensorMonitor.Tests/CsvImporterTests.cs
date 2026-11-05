@@ -1,4 +1,6 @@
+using System.Globalization;
 using IndustrialSensorMonitor.Export;
+using IndustrialSensorMonitor.Formatting;
 using Xunit;
 
 namespace IndustrialSensorMonitor.Tests;
@@ -11,19 +13,35 @@ public class CsvImporterTests
     [Fact]
     public void Parse_SkipsHeaderAndReadsRows()
     {
+        var firstDate = new DateTime(2026, 11, 4, 10, 22, 33);
+        var secondDate = new DateTime(2026, 11, 4, 10, 23, 33);
+
         var report = CsvImporter.Parse(new[]
         {
             Header,
-            "1,سنسور دما,36.5000,°C,1405/08/13 10:22:33,2026-11-04 10:22:33",
-            "2,سنسور فشار,2.7500,bar,1405/08/13 10:23:33,2026-11-04 10:23:33"
+            BuildLine("1", "سنسور دما", "36.5000", "°C", firstDate),
+            BuildLine("2", "سنسور فشار", "2.7500", "bar", secondDate)
         });
 
         Assert.Equal(2, report.Rows.Count);
         Assert.Empty(report.Warnings);
         Assert.Equal(36.5m, report.Rows[0].Value);
         Assert.Equal("°C", report.Rows[0].Unit);
-        Assert.Equal(new DateTime(2026, 11, 4, 10, 22, 33), report.Rows[0].RecordDate);
+        Assert.Equal(firstDate, report.Rows[0].RecordDate);
+        Assert.Equal(secondDate, report.Rows[1].RecordDate);
     }
+
+
+    /// <summary>ساخت یک خط CSV با تاریخ شمسی و میلادی متناظر (هم‌ساختار با خروجی برنامه).</summary>
+    private static string BuildLine(string id, string sensorName, string value, string unit, DateTime recordDate) =>
+        string.Join(
+            ',',
+            id,
+            sensorName,
+            value,
+            unit,
+            PersianDateFormatter.Format(recordDate),
+            recordDate.ToString("yyyy-MM-dd HH:mm:ss", CultureInfo.InvariantCulture));
 
     [Fact]
     public void Parse_ReadsQuotedFieldContainingCommaAndQuote()

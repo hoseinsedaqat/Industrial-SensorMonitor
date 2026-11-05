@@ -78,13 +78,37 @@ jobs:
         run: dotnet build ${{ env.SOLUTION_PATH }} -c ${{ env.CONFIGURATION }} --no-restore -p:Version=${{ steps.version.outputs.version }}
 
       - name: اجرای تست‌ها
-        run: >
-          dotnet test ${{ env.TEST_PROJECT_PATH }}
-          -c ${{ env.CONFIGURATION }}
-          --no-build
-          -p:Version=${{ steps.version.outputs.version }}
-          --logger "trx;LogFileName=test-results.trx"
-          --results-directory TestResults
+        shell: pwsh
+        run: |
+          dotnet test ${{ env.TEST_PROJECT_PATH }} `
+            -c ${{ env.CONFIGURATION }} `
+            --no-build `
+            -p:Version=${{ steps.version.outputs.version }} `
+            --logger "trx;LogFileName=test-results.trx" `
+            --results-directory TestResults 2>&1 | Tee-Object -FilePath test-console.txt
+          $exitCode = $LASTEXITCODE
+
+          # هر تست ناموفق به‌صورت Annotation در صفحه اجرا نمایش داده می‌شود
+          $trx = Get-ChildItem TestResults -Filter *.trx -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($trx) {
+            [xml]$result = Get-Content $trx.FullName
+            $failed = @($result.TestRun.Results.UnitTestResult | Where-Object { $_.outcome -eq 'Failed' })
+            foreach ($test in $failed) {
+              $message = ''
+              if ($test.Output -and $test.Output.ErrorInfo) {
+                $message = "$($test.Output.ErrorInfo.Message) || $($test.Output.ErrorInfo.StackTrace)"
+              }
+              $message = ($message -replace "`r?`n", ' / ')
+              if ($message.Length -gt 800) { $message = $message.Substring(0, 800) }
+              Write-Host "::error title=Test failed: $($test.testName)::$message"
+            }
+            Write-Host "تعداد تست‌های ناموفق: $($failed.Count)"
+          }
+          else {
+            Write-Host "::warning::فایل نتیجه تست‌ها پیدا نشد؛ احتمالاً ساخت یا اجرای تست‌ها پیش از تولید trx متوقف شده است."
+          }
+
+          exit $exitCode
 
       - name: بررسی قالب‌بندی کد (dotnet format)
         id: format
