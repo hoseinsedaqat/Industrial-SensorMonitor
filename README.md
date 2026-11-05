@@ -677,25 +677,25 @@ git push origin v1.3.0
 
 ## ۲۲. وضعیت ساخت و بررسی
 
-آخرین بررسی‌ها در محیط واقعی (GitHub Actions، اجرای [`42003773014`](https://github.com/hoseinsedaqat/Industrial-SensorMonitor/actions/runs/42003773014) روی شاخه `test` پس از ادغام PR #16):
+آخرین بررسی‌ها در محیط واقعی (GitHub Actions، اجرای [`42018236487`](https://github.com/hoseinsedaqat/Industrial-SensorMonitor/actions/runs/42018236487) روی تگ `v1.3.1`):
 
 | مرحله | نتیجه |
 |---|---|
-| بررسی سازگاری شماره نسخه (csproj ↔ Setup.iss ↔ CHANGELOG) | ✅ موفق — `1.3.0` در همه یکسان |
+| بررسی سازگاری شماره نسخه (csproj ↔ Setup.iss ↔ CHANGELOG) | ✅ موفق — `1.3.1` در همه یکسان |
 | Build در حالت Release | ✅ موفق |
 | تست‌های خودکار (xUnit) | ✅ موفق — ۱۸۵ مورد تست (Fact و InlineData) در ۱۹ فایل تست |
 | بررسی قالب‌بندی (`dotnet format --verify-no-changes`) | ✅ بدون مورد (غیرمسدودکننده، با گزارش در Artifact) |
 | اندازه‌گیری پوشش کد (coverlet، غیرمسدودکننده) | ✅ موفق — Artifact `coverage` تولید شد |
-| انتشار Self-contained Single File (`win-x64`) | ✅ موفق — `IndustrialSensorMonitor.exe` ≈ ۱۱۱ مگابایت |
-| ساخت فایل نصب با Inno Setup | ✅ موفق — `IndustrialSensorMonitor-Setup-x64.exe` ≈ ۳۳٫۹ مگابایت |
-| ساخت نسخه قابل حمل | ✅ موفق — `IndustrialSensorMonitor-Portable-x64.zip` ≈ ۴۵٫۴ مگابایت |
+| انتشار Self-contained Single File (`win-x64`) | ✅ موفق — `IndustrialSensorMonitor.exe` ≈ ۱۱۶٫۷ مگابایت (۱۱۶٬۶۷۰٬۳۶۵ بایت) |
+| ساخت فایل نصب با Inno Setup | ✅ موفق — `IndustrialSensorMonitor-Setup-x64.exe` ≈ ۳۵٫۵ مگابایت (۳۵٬۵۴۴٬۰۰۴ بایت) |
+| ساخت نسخه قابل حمل | ✅ موفق — `IndustrialSensorMonitor-Portable-x64.zip` ≈ ۴۷٫۶ مگابایت (۴۷٬۶۱۲٬۹۴۳ بایت) |
 | بارگذاری Artifacts | ✅ موفق (EXE، Setup، Portable، test-results، coverage) |
-| انتشار GitHub Release | ✅ موفق — [نسخه v1.3.0](https://github.com/hoseinsedaqat/Industrial-SensorMonitor/releases/tag/v1.3.0) |
+| انتشار GitHub Release | ✅ موفق — [نسخه v1.3.1](https://github.com/hoseinsedaqat/Industrial-SensorMonitor/releases/tag/v1.3.1) |
 
 > **نکته درباره حجم‌ها:** اعداد بالا حجم واقعی فایل‌های Release هستند. حجم Artifactها در صفحه Actions کمتر
 > دیده می‌شود، چون GitHub آن‌ها را به‌صورت ZIP فشرده ذخیره می‌کند.
 >
-> **نسخه منتشرشده فعلی:** `v1.3.0` (راهنمای انتشار نسخه بعدی: [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md)).
+> **نسخه منتشرشده فعلی:** `v1.3.1` (راهنمای انتشار نسخه بعدی: [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md)).
 
 تست‌های خودکار شامل تست واقعی ساخت فرم در یک Thread با `ApartmentState.STA` (بررسی قابل‌استفاده بودن کادر ورود
 مقدار سنسور و وجود کنترل‌های اصلی) و تست‌های ذخیره‌سازی روی فایل موقت هستند.
