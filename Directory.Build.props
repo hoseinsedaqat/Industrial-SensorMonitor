@@ -1,0 +1,29 @@
+<Project>
+
+  <!--
+    تنظیمات مشترک همه پروژه‌های این مخزن (برنامه و تست‌ها).
+    این فایل به‌صورت خودکار توسط MSBuild خوانده می‌شود و نیازی به Import ندارد.
+  -->
+  <PropertyGroup>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+
+    <!-- ساخت قابل تکرار (Deterministic) -->
+    <Deterministic>true</Deterministic>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+
+    <!-- هشدارهای کامپایلر نمایش داده شوند اما مانع ساخت نشوند -->
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+    <EnableNETAnalyzers>true</EnableNETAnalyzers>
+    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
+
+    <!-- اطلاعات مشترک اسمبلی -->
+    <Company>Industrial Sensor Monitor</Company>
+    <Product>Industrial Sensor Monitor</Product>
+    <Copyright>Copyright © 2026</Copyright>
+    <RepositoryUrl>https://github.com/hoseinsedaqat/Industrial-SensorMonitor</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+
+</Project>

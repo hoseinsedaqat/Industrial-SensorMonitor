@@ -38,6 +38,14 @@ jobs:
         with:
           dotnet-version: ${{ env.DOTNET_VERSION }}
 
+      - name: کش پکیج‌های NuGet
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: ${{ runner.os }}-nuget-${{ hashFiles('**/*.csproj', '**/packages.lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-nuget-
+
       - name: نمایش اطلاعات محیط Build
         shell: pwsh
         run: |
@@ -69,13 +77,109 @@ jobs:
         run: dotnet build ${{ env.SOLUTION_PATH }} -c ${{ env.CONFIGURATION }} --no-restore -p:Version=${{ steps.version.outputs.version }}
 
       - name: اجرای تست‌ها
-        run: >
-          dotnet test ${{ env.TEST_PROJECT_PATH }}
-          -c ${{ env.CONFIGURATION }}
-          --no-build
-          -p:Version=${{ steps.version.outputs.version }}
-          --logger "trx;LogFileName=test-results.trx"
-          --results-directory TestResults
+        shell: pwsh
+        run: |
+          dotnet test ${{ env.TEST_PROJECT_PATH }} `
+            -c ${{ env.CONFIGURATION }} `
+            --no-build `
+            -p:Version=${{ steps.version.outputs.version }} `
+            --logger "trx;LogFileName=test-results.trx" `
+            --results-directory TestResults 2>&1 | Tee-Object -FilePath test-console.txt
+          $exitCode = $LASTEXITCODE
+
+          # هر تست ناموفق به‌صورت Annotation در صفحه اجرا نمایش داده می‌شود
+          $trx = Get-ChildItem TestResults -Filter *.trx -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($trx) {
+            [xml]$result = Get-Content $trx.FullName
+            $failed = @($result.TestRun.Results.UnitTestResult | Where-Object { $_.outcome -eq 'Failed' })
+            foreach ($test in $failed) {
+              $message = ''
+              if ($test.Output -and $test.Output.ErrorInfo) {
+                $message = "$($test.Output.ErrorInfo.Message) || $($test.Output.ErrorInfo.StackTrace)"
+              }
+              $message = ($message -replace "`r?`n", ' / ')
+              if ($message.Length -gt 800) { $message = $message.Substring(0, 800) }
+              Write-Host "::error title=Test failed: $($test.testName)::$message"
+            }
+            Write-Host "تعداد تست‌های ناموفق: $($failed.Count)"
+          }
+          else {
+            Write-Host "::warning::فایل نتیجه تست‌ها پیدا نشد؛ احتمالاً ساخت یا اجرای تست‌ها پیش از تولید trx متوقف شده است."
+          }
+
+          exit $exitCode
+
+      - name: بررسی قالب‌بندی کد (dotnet format)
+        id: format
+        # این بررسی مسدودکننده نیست تا یک اختلاف قالب‌بندی، انتشار نسخه را متوقف نکند؛
+        # نتیجه آن در خلاصه اجرا (Summary)، Annotationها و Artifact «format-report» دیده می‌شود.
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          dotnet format ${{ env.SOLUTION_PATH }} --verify-no-changes --severity warn --no-restore *>&1 |
+            Tee-Object -FilePath format-report.txt
+          $exitCode = $LASTEXITCODE
+
+          '### بررسی قالب‌بندی کد' >> $env:GITHUB_STEP_SUMMARY
+
+          if ($exitCode -eq 0) {
+            Write-Host 'قالب‌بندی کد بدون مشکل است.'
+            '✅ `dotnet format --verify-no-changes` بدون خطا اجرا شد.' >> $env:GITHUB_STEP_SUMMARY
+            exit 0
+          }
+
+          Write-Host "::warning::بررسی قالب‌بندی مواردی پیدا کرد (کد خروج $exitCode)."
+          '⚠️ `dotnet format --verify-no-changes` مواردی پیدا کرد؛ جزئیات در Annotationهای همین اجرا و Artifact «format-report» است.' >> $env:GITHUB_STEP_SUMMARY
+
+          $lines = Get-Content format-report.txt
+          $emitted = 0
+          foreach ($line in $lines) {
+            if ($emitted -ge 20) { break }
+            if ($line -match '^(?<file>[A-Za-z]:\\[^\(]+\.cs|/[^\(]+\.cs)\((?<line>\d+),(?<col>\d+)\):\s*(?:error|warning)\s*(?<rule>[A-Za-z0-9]+)?\s*:?\s*(?<msg>.+)$') {
+              Write-Host "::warning file=$($Matches['file']),line=$($Matches['line'])::$($Matches['rule']) :: $($Matches['msg'])"
+              $emitted++
+            }
+          }
+
+          if ($emitted -eq 0) {
+            $tail = $lines | Where-Object { $_.Trim().Length -gt 0 } | Select-Object -Last 12
+            foreach ($line in $tail) { Write-Host "::warning::$line" }
+          }
+
+      - name: بارگذاری گزارش قالب‌بندی
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: format-report
+          path: format-report.txt
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: نمایش خلاصه نتایج تست‌ها
+        if: always()
+        shell: pwsh
+        run: |
+          $trx = Get-ChildItem -Path TestResults -Filter *.trx -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $trx) {
+            '### نتایج تست‌ها' >> $env:GITHUB_STEP_SUMMARY
+            'فایل نتیجه تست‌ها (trx) پیدا نشد.' >> $env:GITHUB_STEP_SUMMARY
+            exit 0
+          }
+
+          [xml]$result = Get-Content -Path $trx.FullName
+          $counters = $result.TestRun.ResultSummary.Counters
+          $outcome = $result.TestRun.ResultSummary.Outcome
+
+          '### نتایج تست‌ها' >> $env:GITHUB_STEP_SUMMARY
+          '' >> $env:GITHUB_STEP_SUMMARY
+          '| وضعیت | تعداد |' >> $env:GITHUB_STEP_SUMMARY
+          '| --- | --- |' >> $env:GITHUB_STEP_SUMMARY
+          "| موفق | $($counters.passed) |" >> $env:GITHUB_STEP_SUMMARY
+          "| ناموفق | $($counters.failed) |" >> $env:GITHUB_STEP_SUMMARY
+          "| رد‌شده | $($counters.notExecuted) |" >> $env:GITHUB_STEP_SUMMARY
+          "| **مجموع** | **$($counters.total)** |" >> $env:GITHUB_STEP_SUMMARY
+          '' >> $env:GITHUB_STEP_SUMMARY
+          "نتیجه کلی: **$outcome**" >> $env:GITHUB_STEP_SUMMARY
 
       - name: انتشار فایل اجرایی (Self-contained, Single File)
         run: >
