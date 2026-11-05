@@ -129,7 +129,7 @@ public sealed class RecordEditForm : Form
             ForeColor = Color.White,
             UseVisualStyleBackColor = false,
             Margin = new Padding(0, 0, 10, 0),
-            FlatAppearance = { BorderSize = 0 }
+            FlatAppearance = { BorderSize = 0, MouseOverBackColor = Color.FromArgb(37, 99, 235), MouseDownBackColor = Color.FromArgb(37, 99, 235) }
         };
 
         var btnCancel = new Button
@@ -142,7 +142,7 @@ public sealed class RecordEditForm : Form
             ForeColor = Color.FromArgb(15, 23, 42),
             UseVisualStyleBackColor = false,
             Margin = new Padding(0, 0, 10, 0),
-            FlatAppearance = { BorderSize = 0 }
+            FlatAppearance = { BorderSize = 0, MouseOverBackColor = Color.FromArgb(226, 232, 240), MouseDownBackColor = Color.FromArgb(226, 232, 240) }
         };
 
         btnSave.Click += BtnSave_Click;

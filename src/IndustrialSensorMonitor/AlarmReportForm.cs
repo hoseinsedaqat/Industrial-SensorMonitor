@@ -135,24 +135,22 @@ public sealed class AlarmReportForm : Form
             WrapContents = false
         };
 
-        var btnExport = new AccentButton
+        var btnExport = new Button
         {
             Text = "خروجی CSV هشدارها",
-            Kind = ButtonKind.Primary,
-            Icon = VectorIcon.Export,
-            Width = 190,
             Enabled = _rows.Count > 0,
             Margin = new Padding(0, 0, 8, 0)
         };
+        ButtonStyler.Apply(btnExport, ButtonStyle.Primary);
         btnExport.Click += BtnExport_Click;
 
-        var btnClose = new AccentButton
+        var btnClose = new Button
         {
             Text = "بستن",
-            Kind = ButtonKind.Secondary,
-            Width = 110,
-            DialogResult = DialogResult.Cancel
+            DialogResult = DialogResult.Cancel,
+            Margin = new Padding(0)
         };
+        ButtonStyler.Apply(btnClose, ButtonStyle.Secondary);
 
         buttons.Controls.Add(btnExport);
         buttons.Controls.Add(btnClose);

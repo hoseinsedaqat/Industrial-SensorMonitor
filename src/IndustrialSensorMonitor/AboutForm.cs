@@ -221,7 +221,8 @@ public sealed class AboutForm : Form
         ForeColor = foreColor,
         Margin = new Padding(0, 0, 10, 0),
         UseVisualStyleBackColor = false,
-        FlatAppearance = { BorderSize = 0 }
+        // رنگ دکمه در Hover و کلیک تغییر نمی‌کند
+        FlatAppearance = { BorderSize = 0, MouseOverBackColor = backColor, MouseDownBackColor = backColor }
     };
 
     private async void BtnCheckUpdate_Click(object? sender, EventArgs e)

@@ -14,7 +14,7 @@ public sealed class RestoreBackupForm : Form
     private readonly SensorDataStore _store;
     private readonly DataGridView _grid;
     private readonly Label _hint;
-    private readonly AccentButton _btnRestore;
+    private readonly Button _btnRestore;
 
     /// <summary>ساخت پنجره بر اساس مخزن داده.</summary>
     public RestoreBackupForm(SensorDataStore store)
@@ -105,32 +105,29 @@ public sealed class RestoreBackupForm : Form
             WrapContents = false
         };
 
-        _btnRestore = new AccentButton
+        _btnRestore = new Button
         {
             Text = "بازگردانی نسخه انتخاب‌شده",
-            Kind = ButtonKind.Primary,
-            Icon = VectorIcon.Restore,
-            Width = 210,
             Enabled = false,
             Margin = new Padding(0, 0, 8, 0)
         };
+        ButtonStyler.Apply(_btnRestore, ButtonStyle.Primary);
         _btnRestore.Click += BtnRestore_Click;
 
-        var btnClose = new AccentButton
+        var btnClose = new Button
         {
             Text = "بستن",
-            Kind = ButtonKind.Secondary,
-            Width = 110,
-            DialogResult = DialogResult.Cancel
+            DialogResult = DialogResult.Cancel,
+            Margin = new Padding(0)
         };
+        ButtonStyler.Apply(btnClose, ButtonStyle.Secondary);
 
-        var btnOpenFolder = new AccentButton
+        var btnOpenFolder = new Button
         {
             Text = "پوشه نسخه‌ها",
-            Kind = ButtonKind.Ghost,
-            Icon = VectorIcon.Export,
-            Width = 150
+            Margin = new Padding(0, 0, 8, 0)
         };
+        ButtonStyler.Apply(btnOpenFolder, ButtonStyle.Ghost);
         btnOpenFolder.Click += BtnOpenFolder_Click;
 
         buttons.Controls.Add(_btnRestore);
