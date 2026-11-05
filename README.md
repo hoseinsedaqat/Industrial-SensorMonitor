@@ -677,18 +677,24 @@ git push origin v1.3.0
 
 ## ۲۲. وضعیت ساخت و بررسی
 
-آخرین بررسی‌ها در محیط واقعی (GitHub Actions، اجرای `41986777801` روی شاخه همین نسخه):
+آخرین بررسی‌ها در محیط واقعی (GitHub Actions، اجرای [`42003773014`](https://github.com/hoseinsedaqat/Industrial-SensorMonitor/actions/runs/42003773014) روی شاخه `test` پس از ادغام PR #16):
 
 | مرحله | نتیجه |
 |---|---|
+| بررسی سازگاری شماره نسخه (csproj ↔ Setup.iss ↔ CHANGELOG) | ✅ موفق — `1.3.0` در همه یکسان |
 | Build در حالت Release | ✅ موفق |
-| تست‌های خودکار (xUnit) | ✅ موفق — ۱۲۹ مورد تست (Fact و InlineData) در ۱۲ فایل تست |
+| تست‌های خودکار (xUnit) | ✅ موفق — ۱۸۵ مورد تست (Fact و InlineData) در ۱۹ فایل تست |
 | بررسی قالب‌بندی (`dotnet format --verify-no-changes`) | ✅ بدون مورد (غیرمسدودکننده، با گزارش در Artifact) |
-| انتشار Self-contained Single File (`win-x64`) | ✅ موفق — `IndustrialSensorMonitor.exe` ≈ ۱۱۱ مگابایت |
-| ساخت فایل نصب با Inno Setup | ✅ موفق — `IndustrialSensorMonitor-Setup-x64.exe` ≈ ۳۳٫۹ مگابایت |
-| ساخت نسخه قابل حمل | ✅ موفق — `IndustrialSensorMonitor-Portable-x64.zip` ≈ ۴۵٫۴ مگابایت |
-| بارگذاری Artifacts | ✅ موفق |
-| انتشار GitHub Release | ✅ موفق — [نسخه v1.2.0](https://github.com/hoseinsedaqat/Industrial-SensorMonitor/releases/tag/v1.2.0) |
+| اندازه‌گیری پوشش کد (coverlet، غیرمسدودکننده) | ✅ موفق — Artifact `coverage` تولید شد |
+| انتشار Self-contained Single File (`win-x64`) | ✅ موفق — `IndustrialSensorMonitor.exe` ≈ ۴۵٫۲ مگابایت |
+| ساخت فایل نصب با Inno Setup | ✅ موفق — `IndustrialSensorMonitor-Setup-x64.exe` ≈ ۳۳٫۴ مگابایت |
+| ساخت نسخه قابل حمل | ✅ موفق — `IndustrialSensorMonitor-Portable-x64.zip` ≈ ۴۵٫۳ مگابایت |
+| بارگذاری Artifacts | ✅ موفق (EXE، Setup، Portable، test-results، coverage) |
+| انتشار GitHub Release | برای نسخه ۱٫۳٫۰ هنوز انجام نشده — با Push تگ `v1.3.0` به‌صورت خودکار منتشر می‌شود |
+
+> **نکته:** نسخه منتشرشده فعلی در Releases همان `v1.2.0` است. برای انتشار `v1.3.0` تگ بزنید
+> (راهنما: [docs/RELEASE_PROCESS.md](docs/RELEASE_PROCESS.md)). تا آن زمان فایل‌های نسخه ۱٫۳٫۰ فقط در
+> Artifacts همین اجرا در دسترس هستند.
 
 تست‌های خودکار شامل تست واقعی ساخت فرم در یک Thread با `ApartmentState.STA` (بررسی قابل‌استفاده بودن کادر ورود
 مقدار سنسور و وجود کنترل‌های اصلی) و تست‌های ذخیره‌سازی روی فایل موقت هستند.
