@@ -4,7 +4,7 @@
 
 نرم‌افزاری دسکتاپ برای ویندوز که با **C# / Windows Forms** نوشته شده و اطلاعات سنسورهای صنعتی را در یک **فایل JSON محلی** ذخیره، مدیریت و نمایش می‌دهد.
 
-> **نسخه فعلی:** `1.1.0`
+> **نسخه فعلی:** `1.1.1`
 > **پلتفرم:** Windows 10 / 11 — 64 bit
 > **فریم‌ورک:** .NET 10 (`net10.0-windows`)
 > **بدون نیاز به SQL Server، بدون سرور، بدون نصب دیتابیس**
@@ -356,7 +356,7 @@ publish/win-x64/
 2. کامپایلر Inno Setup را اجرا کنید:
 
 ```powershell
-& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\Setup.iss /DMyAppVersion=1.1.0
+& "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer\Setup.iss /DMyAppVersion=1.1.1
 ```
 
 3. خروجی در مسیر `dist/IndustrialSensorMonitor-Setup-x64.exe` ساخته می‌شود.
@@ -541,9 +541,16 @@ IndustrialSensorMonitor/
 
 | مورد | مقدار |
 |---|---|
-| نسخه | `1.1.0` |
+| نسخه | `1.1.1` |
 | الگوی نسخه‌بندی | `Major.Minor.Patch` |
 | محل تعریف نسخه | `src/IndustrialSensorMonitor/IndustrialSensorMonitor.csproj` و `installer/Setup.iss` |
+
+**تغییرات نسخه ۱٫۱٫۱:**
+
+- رفع مشکل ورود مقدار سنسور: در فرم راست‌به‌چپ، کادر `NumericUpDown` خالی/غیرقابل‌تایپ نمایش داده می‌شد و مقدار همیشه صفر ثبت می‌شد. اکنون این کنترل (و متن داخلی آن) چپ‌به‌راست تنظیم شده و مقدار قابل تایپ و ویرایش است.
+- عرض ثابت و همیشه‌قابل‌مشاهده برای کادر مقدار + فونت بزرگ‌تر و حاشیه مشخص
+- کلیک روی برچسب «مقدار سنسور» به کادر مقدار Focus می‌دهد و متن را انتخاب می‌کند
+- نمایش راهنما (Tooltip) برای کادر مقدار و واحد اندازه‌گیری
 
 **تغییرات نسخه ۱٫۱٫۰ نسبت به ۱٫۰٫۰:**
 
@@ -600,4 +607,4 @@ git push origin v1.1.1
 
 ---
 
-**پایان مستندات — Industrial Sensor Monitor 1.1.0**
+**پایان مستندات — Industrial Sensor Monitor 1.1.1**
