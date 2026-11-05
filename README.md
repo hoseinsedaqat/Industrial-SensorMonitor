@@ -655,11 +655,11 @@ git push origin v1.2.0
 | Build در حالت Release | ✅ موفق |
 | تست‌های خودکار (xUnit) | ✅ موفق — ۱۲۹ مورد تست (Fact و InlineData) در ۱۲ فایل تست |
 | بررسی قالب‌بندی (`dotnet format --verify-no-changes`) | ✅ بدون مورد (غیرمسدودکننده، با گزارش در Artifact) |
-| انتشار Self-contained Single File (`win-x64`) | ✅ موفق — `IndustrialSensorMonitor.exe` ≈ ۴۵٫۲ مگابایت |
-| ساخت فایل نصب با Inno Setup | ✅ موفق — `IndustrialSensorMonitor-Setup-x64.exe` ≈ ۳۳٫۴ مگابایت |
-| ساخت نسخه قابل حمل | ✅ موفق — `IndustrialSensorMonitor-Portable-x64.zip` ≈ ۴۵٫۲ مگابایت |
+| انتشار Self-contained Single File (`win-x64`) | ✅ موفق — `IndustrialSensorMonitor.exe` ≈ ۱۱۱ مگابایت |
+| ساخت فایل نصب با Inno Setup | ✅ موفق — `IndustrialSensorMonitor-Setup-x64.exe` ≈ ۳۳٫۹ مگابایت |
+| ساخت نسخه قابل حمل | ✅ موفق — `IndustrialSensorMonitor-Portable-x64.zip` ≈ ۴۵٫۴ مگابایت |
 | بارگذاری Artifacts | ✅ موفق |
-| انتشار GitHub Release | با ایجاد Tag نسخه اجرا می‌شود |
+| انتشار GitHub Release | ✅ موفق — [نسخه v1.2.0](https://github.com/hoseinsedaqat/Industrial-SensorMonitor/releases/tag/v1.2.0) |
 
 تست‌های خودکار شامل تست واقعی ساخت فرم در یک Thread با `ApartmentState.STA` (بررسی قابل‌استفاده بودن کادر ورود
 مقدار سنسور و وجود کنترل‌های اصلی) و تست‌های ذخیره‌سازی روی فایل موقت هستند.
