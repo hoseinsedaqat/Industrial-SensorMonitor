@@ -934,7 +934,7 @@ public partial class MainForm
         tlpRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 196F));
         tlpRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 132F));
         tlpRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Percent, 100F));
-        tlpRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 226F));
+        tlpRoot.RowStyles.Add(new System.Windows.Forms.RowStyle(System.Windows.Forms.SizeType.Absolute, 258F));
         tlpRoot.BackColor = IndustrialSensorMonitor.UI.AppTheme.Background;
         tlpRoot.Dock = System.Windows.Forms.DockStyle.Fill;
         tlpRoot.Margin = new System.Windows.Forms.Padding(0);
@@ -1023,6 +1023,10 @@ public partial class MainForm
         dgvSensorData.CellDoubleClick += dgvSensorData_CellDoubleClick;
         dgvSensorData.ColumnHeaderMouseClick += dgvSensorData_ColumnHeaderMouseClick;
         dgvSensorData.DataBindingComplete += dgvSensorData_DataBindingComplete;
+        dgvSensorData.RowPostPaint += dgvSensorData_RowPostPaint;
+        dgvSensorData.CellMouseEnter += dgvSensorData_CellMouseEnter;
+        dgvSensorData.MouseLeave += dgvSensorData_MouseLeave;
+        dgvSensorData.Paint += dgvSensorData_Paint;
 
         tmrSimulation.Tick += tmrSimulation_Tick;
 

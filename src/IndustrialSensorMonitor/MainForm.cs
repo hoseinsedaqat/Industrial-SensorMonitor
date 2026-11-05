@@ -41,6 +41,12 @@ public partial class MainForm : Form
     private readonly UserSettingsStore _settingsStore;
     private readonly Random _random = new();
 
+    /// <summary>فونت برجسته برای مقدارهای هشدار در جدول.</summary>
+    private static readonly Font AlarmValueFont = new("Tahoma", 9.75F, FontStyle.Bold);
+
+    /// <summary>ردیفی که ماوس روی آن است (برای برجسته‌سازی سطر).</summary>
+    private int _hoverRowIndex = -1;
+
     /// <summary>رکوردهایی که آخرین حذف انجام شده و قابل بازگردانی هستند.</summary>
     private readonly List<SensorData> _undoBuffer = [];
 
@@ -1378,8 +1384,11 @@ public partial class MainForm : Form
 
         var unit = _visibleRecords.Count > 0 ? _visibleRecords[0].Unit : string.Empty;
         var stats = ValueStatistics.FromRecords(_visibleRecords);
+        var alarmCount = _visibleRecords.Count == 0 ? 0 : AlarmDetector.Detect(_visibleRecords).Count;
 
-        grpRecords.Hint = stats.HasValues ? stats.Describe(unit) : string.Empty;
+        grpRecords.Hint = stats.HasValues
+            ? stats.Describe(unit) + (alarmCount > 0 ? $" • {alarmCount} هشدار" : string.Empty)
+            : string.Empty;
         lblStatusCount.Text = $"نمایش {_visibleRecords.Count} از {_records.Count}";
         lblStatusStats.Text = stats.HasValues ? stats.Describe(unit) : string.Empty;
         lblFilterResult.Text = _visibleRecords.Count == _records.Count
@@ -1503,7 +1512,7 @@ public partial class MainForm : Form
             _visibleRecords.Where(record => names.Contains(record.SensorName, StringComparer.Ordinal)));
 
         grpChart.Hint = series.Count > 0
-            ? $"{series.Sum(item => item.Points.Count)} نقطه"
+            ? $"{series.Sum(item => item.Points.Count)} نقطه — برای دیدن مقدار دقیق، ماوس را روی خط نمودار ببرید"
             : string.Empty;
 
         lblChartStats.Text = series.Count == 0
@@ -1579,6 +1588,16 @@ public partial class MainForm : Form
         btnUndoDelete.Enabled = hasUndo;
         miUndoDelete.Enabled = hasUndo;
         btnUndoDelete.Text = hasUndo ? $"بازگردانی {_undoBuffer.Count} حذف" : "بازگردانی حذف";
+
+        if (selectedCount > 1)
+        {
+            lblRecordsHint.Text =
+                $"{selectedCount} ردیف انتخاب شده — با Delete حذف گروهی و با Ctrl+Z بازگردانی می‌شود.";
+        }
+        else
+        {
+            UpdateRecordsHint();
+        }
     }
 
     /// <summary>رکوردهای انتخاب‌شده در جدول (در صورت نبود انتخاب، ردیف جاری).</summary>
@@ -1686,6 +1705,17 @@ public partial class MainForm : Form
 
         var level = AlarmDetector.Evaluate(record);
 
+        if (level == AlarmLevel.Normal)
+        {
+            return;
+        }
+
+        // مقدار سنسور در ردیف‌های هشدار، برجسته نمایش داده می‌شود
+        if (e.ColumnIndex == colValue.Index)
+        {
+            e.CellStyle.Font = AlarmValueFont;
+        }
+
         if (level == AlarmLevel.Critical)
         {
             e.CellStyle.BackColor = AppTheme.DangerSoft;
@@ -1693,12 +1723,109 @@ public partial class MainForm : Form
             e.CellStyle.SelectionBackColor = Color.FromArgb(252, 165, 165);
             e.CellStyle.SelectionForeColor = Color.FromArgb(69, 10, 10);
         }
-        else if (level == AlarmLevel.Warning)
+        else
         {
             e.CellStyle.BackColor = AppTheme.WarningSoft;
             e.CellStyle.ForeColor = AppTheme.Warning;
             e.CellStyle.SelectionBackColor = Color.FromArgb(253, 230, 138);
             e.CellStyle.SelectionForeColor = Color.FromArgb(120, 53, 15);
         }
+    }
+
+    // ---------------------------------------------------------------------
+    // جلوه‌های جدول: نوار هشدار، برجسته‌سازی سطر زیر ماوس و پیام حالت خالی
+    // ---------------------------------------------------------------------
+
+    private void dgvSensorData_RowPostPaint(object? sender, DataGridViewRowPostPaintEventArgs e)
+    {
+        if (e.RowIndex < 0 || e.RowIndex >= _visibleRecords.Count)
+        {
+            return;
+        }
+
+        var bounds = e.RowBounds;
+
+        // نوار رنگی لبه شروع ردیف (در چیدمان راست‌به‌چپ: لبه راست)
+        var level = AlarmDetector.Evaluate(_visibleRecords[e.RowIndex]);
+
+        if (level != AlarmLevel.Normal)
+        {
+            using var accentBrush = new SolidBrush(level == AlarmLevel.Critical ? AppTheme.Danger : AppTheme.Warning);
+            e.Graphics.FillRectangle(accentBrush, bounds.Right - 3, bounds.Top + 1, 3, bounds.Height - 2);
+        }
+
+        // برجسته‌سازی ملایم سطر زیر ماوس
+        if (e.RowIndex == _hoverRowIndex && !dgvSensorData.Rows[e.RowIndex].Selected)
+        {
+            using var hoverBrush = new SolidBrush(Color.FromArgb(16, AppTheme.Accent));
+            e.Graphics.FillRectangle(hoverBrush, bounds.Left, bounds.Top, bounds.Width, bounds.Height);
+        }
+    }
+
+    private void dgvSensorData_CellMouseEnter(object? sender, DataGridViewCellEventArgs e)
+    {
+        if (e.RowIndex == _hoverRowIndex)
+        {
+            return;
+        }
+
+        var previous = _hoverRowIndex;
+        _hoverRowIndex = e.RowIndex;
+
+        if (previous >= 0 && previous < dgvSensorData.Rows.Count)
+        {
+            dgvSensorData.InvalidateRow(previous);
+        }
+
+        if (_hoverRowIndex >= 0 && _hoverRowIndex < dgvSensorData.Rows.Count)
+        {
+            dgvSensorData.InvalidateRow(_hoverRowIndex);
+        }
+    }
+
+    private void dgvSensorData_MouseLeave(object? sender, EventArgs e)
+    {
+        var previous = _hoverRowIndex;
+        _hoverRowIndex = -1;
+
+        if (previous >= 0 && previous < dgvSensorData.Rows.Count)
+        {
+            dgvSensorData.InvalidateRow(previous);
+        }
+    }
+
+    private void dgvSensorData_Paint(object? sender, PaintEventArgs e)
+    {
+        if (dgvSensorData.Rows.Count > 0)
+        {
+            return;
+        }
+
+        var top = dgvSensorData.ColumnHeadersHeight;
+        var height = Math.Max(40, dgvSensorData.ClientSize.Height - top - 4);
+
+        var title = _records.Count == 0
+            ? "هنوز رکوردی ثبت نشده است"
+            : "رکوردی مطابق فیلتر پیدا نشد";
+
+        var subtitle = _records.Count == 0
+            ? "اولین قرائت سنسور را از کارت «ثبت اطلاعات سنسور» ثبت کنید"
+            : "برای دیدن همه رکوردها، فیلترها را پاک کنید";
+
+        TextRenderer.DrawText(
+            e.Graphics,
+            title,
+            AppTheme.CardTitleFont,
+            new Rectangle(0, top + height / 2 - 26, dgvSensorData.ClientSize.Width, 24),
+            AppTheme.TextSecondary,
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.RightToLeft);
+
+        TextRenderer.DrawText(
+            e.Graphics,
+            subtitle,
+            AppTheme.SmallFont,
+            new Rectangle(0, top + height / 2, dgvSensorData.ClientSize.Width, 22),
+            AppTheme.TextMuted,
+            TextFormatFlags.HorizontalCenter | TextFormatFlags.VerticalCenter | TextFormatFlags.RightToLeft);
     }
 }
