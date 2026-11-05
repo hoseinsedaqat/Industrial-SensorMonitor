@@ -145,7 +145,7 @@ public class AccentButton : Button
             graphics,
             Text,
             Font,
-            new Rectangle((int)textLeft, 0, (int)Math.Ceiling(textSize.Width) + 2, Height),
+            new Rectangle((int)textLeft, 0, (int)Math.Ceiling((double)textSize.Width) + 2, Height),
             foreground,
             TextFormatFlags.Left | TextFormatFlags.VerticalCenter | TextFormatFlags.NoPadding);
 

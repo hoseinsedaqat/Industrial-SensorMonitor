@@ -1,3 +1,5 @@
+#nullable enable
+
 using IndustrialSensorMonitor.Charts;
 using IndustrialSensorMonitor.UI;
 
